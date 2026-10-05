@@ -1,7 +1,19 @@
+const storage = window.electronBridge?.storage || window.localStorage;
+let currentSignatureIndex = null;
+const recipientNameInput = document.getElementById("recipientNameInput");
+
+recipientNameInput.addEventListener("click", () => recipientNameInput.focus());
+recipientNameInput.addEventListener("keydown", event => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  saveSignature(false);
+});
+
 document.addEventListener("DOMContentLoaded", function () {
   const form = document.getElementById("shipmentForm");
   const tableBody = document.querySelector("#shipmentsTable tbody");
   const searchInput = document.getElementById("searchInput");
+  const resetFiltersButton = document.getElementById("resetFiltersButton");
   const searchColumns = document.querySelectorAll(".search-col");
   const statusFilter = document.getElementById("statusFilter");
   const shipmentSort = document.getElementById("shipmentSort");
@@ -12,35 +24,240 @@ document.addEventListener("DOMContentLoaded", function () {
   const dateTo = document.getElementById("dateTo");
   const shipmentMonth = document.getElementById("shipmentMonth");
   const exportExcelButton = document.getElementById("exportExcelButton");
+  const exportVisibleExcelButton = document.getElementById("exportVisibleExcelButton");
   const importExcelButton = document.getElementById("importExcelButton");
   const importExcelFile = document.getElementById("importExcelFile");
+  const refreshAppButton = document.getElementById("refreshAppButton");
+  const notesModal = document.getElementById("notesModal");
+  const notesTextarea = document.getElementById("notesTextarea");
+  const notesSaveButton = document.getElementById("notesSaveButton");
+  const notesEditButton = document.getElementById("notesEditButton");
+  const notesDeleteButton = document.getElementById("notesDeleteButton");
+  const notesCloseButton = document.getElementById("notesCloseButton");
   const excelHeaders = [
-    "Firma przewozowa", "Numer listu", "Data odbioru", "Adresat", "Nadawca",
-    "Rodzaj przesyłki", "Zawartość", "Numer zamówienia", "Numer projektu", "Status"
+    "Firma przewozowa", "Numer listu", "Data przyjęcia", "Adresat", "Nadawca",
+    "Rodzaj przesyłki", "Zawartość", "Numer zamówienia", "Numer projektu", "Status",
+    "Imię i nazwisko odbiorcy", "Notatki"
   ];
   const scrollBehavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
   let editIndex = null;
-  let currentSignatureIndex = null;
-  let previewSignatureIndex = null;
+  let currentNotesIndex = null;
+  let scrollAnimationFrame = null;
+
+  function scrollPageTo(targetPosition) {
+    if (scrollBehavior === "auto") {
+      window.scrollTo({ top: targetPosition, behavior: "auto" });
+      return;
+    }
+
+    if (scrollAnimationFrame !== null) cancelAnimationFrame(scrollAnimationFrame);
+    const startPosition = window.scrollY;
+    const distance = targetPosition - startPosition;
+    const startTime = performance.now();
+    const duration = 250;
+
+    function animateScroll(currentTime) {
+      const progress = Math.min((currentTime - startTime) / duration, 1);
+      const easedProgress = 1 - (1 - progress) ** 3;
+      window.scrollTo(0, startPosition + distance * easedProgress);
+      scrollAnimationFrame = progress < 1 ? requestAnimationFrame(animateScroll) : null;
+    }
+
+    scrollAnimationFrame = requestAnimationFrame(animateScroll);
+  }
+
+  refreshAppButton.addEventListener("click", async () => {
+    if (!confirm("Odświeżyć aplikację? Niezapisane dane formularza zostaną utracone.")) return;
+    try {
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+    } catch {}
+    window.location.reload();
+  });
 
   document.getElementById("scrollToTop").addEventListener("click", function () {
-    window.scrollTo({ top: 0, behavior: scrollBehavior });
+    scrollPageTo(0);
   });
 
   document.getElementById("scrollToBottom").addEventListener("click", function () {
-    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: scrollBehavior });
+    scrollPageTo(document.documentElement.scrollHeight);
   });
 
-  exportExcelButton.addEventListener("click", function () {
+  function openNotesModal(index) {
+    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
+    const shipment = shipments[index];
+    if (!shipment) return;
+
+    currentNotesIndex = index;
+    notesTextarea.value = shipment.notatki || "";
+    const hasNote = Boolean(notesTextarea.value.trim());
+    notesTextarea.readOnly = false;
+    notesSaveButton.disabled = false;
+    notesEditButton.disabled = false;
+    notesDeleteButton.disabled = !hasNote;
+    notesModal.style.display = "flex";
+    notesModal.setAttribute("aria-hidden", "false");
+    focusNotesTextarea();
+  }
+
+  function focusNotesTextarea() {
+    if (notesModal.style.display === "none" || notesTextarea.readOnly || notesTextarea.disabled) return;
+    notesTextarea.focus();
+    const cursorPosition = notesTextarea.value.length;
+    notesTextarea.setSelectionRange(cursorPosition, cursorPosition);
+  }
+
+  function closeNotesModal() {
+    notesModal.style.display = "none";
+    notesModal.setAttribute("aria-hidden", "true");
+    currentNotesIndex = null;
+  }
+
+  window.addEventListener("focus", focusNotesTextarea);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) focusNotesTextarea();
+  });
+
+  notesSaveButton.addEventListener("click", function () {
+    if (currentNotesIndex === null) return;
+    const note = notesTextarea.value.trim();
+    if (!note) {
+      alert("Wpisz treść notatki przed zapisaniem.");
+      notesTextarea.focus();
+      return;
+    }
+
+    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
+    if (!shipments[currentNotesIndex]) return;
+    shipments[currentNotesIndex].notatki = note;
+    storage.setItem("shipments", JSON.stringify(shipments));
+    renderShipments();
+    closeNotesModal();
+  });
+
+  notesEditButton.addEventListener("click", function () {
+    if (currentNotesIndex === null) return;
+    notesTextarea.readOnly = false;
+    focusNotesTextarea();
+  });
+
+  notesDeleteButton.addEventListener("click", function () {
+    if (currentNotesIndex === null || !confirm("Czy na pewno usunąć tę notatkę?")) return;
+    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
+    if (shipments[currentNotesIndex]) {
+      shipments[currentNotesIndex].notatki = "";
+      storage.setItem("shipments", JSON.stringify(shipments));
+      renderShipments();
+    }
+    closeNotesModal();
+  });
+
+  notesCloseButton.addEventListener("click", closeNotesModal);
+  notesModal.addEventListener("click", event => {
+    if (event.target === notesModal) closeNotesModal();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && notesModal.style.display !== "none") closeNotesModal();
+  });
+
+  function formatShipmentContentsForExport(shipment) {
+    const items = Array.isArray(shipment.zawartosc) ? shipment.zawartosc : [];
+    return items.map(item => {
+      const nazwa = item.nazwa ?? "";
+      const ilosc = item.ilosc ?? "";
+      const jednostka = item.jednostka ?? "";
+      const serial = item.serial ? `, SN: ${item.serial}` : "";
+      return `${nazwa} (${ilosc} ${jednostka}${serial})`;
+    }).join("; ");
+  }
+
+  function parseShipmentContents(value) {
+    const rawValue = value == null ? "" : String(value).trim();
+    if (!rawValue) return [];
+
+    try {
+      const parsed = JSON.parse(rawValue);
+      if (Array.isArray(parsed)) {
+        return parsed.map(item => ({
+          nazwa: String(item?.nazwa ?? "").trim(),
+          ilosc: Number(item?.ilosc ?? 0),
+          jednostka: String(item?.jednostka ?? "").trim(),
+          serial: String(item?.serial ?? "").trim()
+        })).filter(item => item.nazwa || item.ilosc || item.jednostka || item.serial);
+      }
+    } catch {
+      // Kontynuuj do parsingu tekstowego.
+    }
+
+    return rawValue
+      .split(";")
+      .map(part => part.trim())
+      .filter(Boolean)
+      .map(part => {
+        const match = /^(.+?)\s*\((.*)\)$/.exec(part);
+        if (!match) {
+          return {
+            nazwa: part,
+            ilosc: 1,
+            jednostka: "szt.",
+            serial: ""
+          };
+        }
+
+        const nazwa = match[1].trim();
+        const inside = match[2].trim();
+        const serialMatch = /,\s*SN:\s*(.+)$/i.exec(inside);
+        const serial = serialMatch ? serialMatch[1].trim() : "";
+        const quantityPart = serialMatch ? inside.slice(0, serialMatch.index).trim() : inside;
+        const qtyMatch = /^([0-9]+(?:[.,][0-9]+)?)\s*(.*)$/.exec(quantityPart);
+
+        return {
+          nazwa,
+          ilosc: qtyMatch ? Number(qtyMatch[1].replace(",", ".")) : 1,
+          jednostka: qtyMatch ? qtyMatch[2].trim() || "szt." : "szt.",
+          serial
+        };
+      });
+  }
+
+  function exportShipmentsToExcel(rows, fileName) {
     if (!window.XLSX) {
       alert("Nie udało się załadować obsługi plików Excel.");
       return;
     }
 
-    const shipments = JSON.parse(localStorage.getItem("shipments") || "[]");
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.aoa_to_sheet([excelHeaders, ...rows]);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Przesylki");
+    XLSX.writeFile(workbook, fileName, { bookType: "xls" });
+  }
+
+  exportExcelButton.addEventListener("click", function () {
+    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
+    const rows = shipments.map(shipment => [
+      shipment.firma,
+      shipment.numerListu,
+      shipment.data,
+      shipment.odbiorca,
+      shipment.nadawca,
+      shipment.rodzaj,
+      formatShipmentContentsForExport(shipment),
+      shipment.zamowienie,
+      shipment.projekt || "",
+      shipment.status || "na magazynie",
+      shipment.odbiorcaPodpis || "",
+      shipment.notatki || ""
+    ]);
+
+    exportShipmentsToExcel(rows, "magazyn.xls");
+  });
+
+  exportVisibleExcelButton.addEventListener("click", function () {
+    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
     const visibleIndices = Array.from(tableBody.rows)
       .filter(row => row.style.display !== "none")
       .map(row => Number(row.dataset.shipmentIndex));
+
     const rows = visibleIndices
       .map(index => shipments[index])
       .filter(Boolean)
@@ -51,16 +268,20 @@ document.addEventListener("DOMContentLoaded", function () {
         shipment.odbiorca,
         shipment.nadawca,
         shipment.rodzaj,
-        JSON.stringify(shipment.zawartosc || []),
+        formatShipmentContentsForExport(shipment),
         shipment.zamowienie,
         shipment.projekt || "",
-        shipment.status || "na magazynie"
+        shipment.status || "na magazynie",
+        shipment.odbiorcaPodpis || "",
+        shipment.notatki || ""
       ]);
 
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.aoa_to_sheet([excelHeaders, ...rows]);
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Przesylki");
-    XLSX.writeFile(workbook, "magazyn.xls", { bookType: "xls" });
+    if (!rows.length) {
+      alert("Brak widocznych przesyłek do eksportu po zastosowanych filtrach.");
+      return;
+    }
+
+    exportShipmentsToExcel(rows, "magazyn_widok.xls");
   });
 
   importExcelButton.addEventListener("click", function () {
@@ -85,20 +306,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const importedRows = XLSX.utils.sheet_to_json(firstSheet, { defval: "", raw: false });
       if (!importedRows.length) throw new Error("Arkusz nie zawiera przesyłek.");
-      const requiredHeaders = excelHeaders.filter(header => header !== "Adresat" && header !== "Numer projektu");
+      const requiredHeaders = excelHeaders.filter(header => header !== "Adresat" && header !== "Numer projektu" && header !== "Data przyjęcia" && header !== "Imię i nazwisko odbiorcy" && header !== "Notatki");
       const hasRecipientHeader = Object.hasOwn(importedRows[0], "Adresat") || Object.hasOwn(importedRows[0], "Odbiorca");
-      if (!requiredHeaders.every(header => Object.hasOwn(importedRows[0], header)) || !hasRecipientHeader) {
+      const hasReceiptDateHeader = Object.hasOwn(importedRows[0], "Data przyjęcia") || Object.hasOwn(importedRows[0], "Data odbioru");
+      if (!requiredHeaders.every(header => Object.hasOwn(importedRows[0], header)) || !hasRecipientHeader || !hasReceiptDateHeader) {
         throw new Error("Arkusz ma nieprawidłowe nagłówki. Użyj pliku wyeksportowanego z tej aplikacji.");
       }
 
       const allowedStatuses = new Set(["na magazynie", "odebrane", "częściowo odebrane"]);
       const importedShipments = importedRows.map((row, index) => {
-        let zawartosc;
-        try {
-          zawartosc = JSON.parse(String(row["Zawartość"] || "[]"));
-        } catch {
-          throw new Error(`Nieprawidłowa zawartość przesyłki w wierszu ${index + 2}.`);
-        }
+        const zawartosc = parseShipmentContents(row["Zawartość"]);
         if (!Array.isArray(zawartosc)) {
           throw new Error(`Nieprawidłowa zawartość przesyłki w wierszu ${index + 2}.`);
         }
@@ -106,12 +323,14 @@ document.addEventListener("DOMContentLoaded", function () {
         const shipment = {
           firma: String(row["Firma przewozowa"]).trim(),
           numerListu: String(row["Numer listu"]).trim(),
-          data: String(row["Data odbioru"]).trim(),
+          data: String(row["Data przyjęcia"] ?? row["Data odbioru"]).trim(),
           odbiorca: String(row["Adresat"] ?? row["Odbiorca"]).trim(),
           nadawca: String(row["Nadawca"]).trim(),
           rodzaj: String(row["Rodzaj przesyłki"]).trim(),
           zamowienie: String(row["Numer zamówienia"]).trim(),
           projekt: String(row["Numer projektu"] ?? "").trim(),
+          odbiorcaPodpis: String(row["Imię i nazwisko odbiorcy"] ?? "").trim(),
+          notatki: String(row["Notatki"] ?? "").trim(),
           zawartosc,
           status: String(row.Status).trim()
         };
@@ -123,11 +342,10 @@ document.addEventListener("DOMContentLoaded", function () {
         return shipment;
       });
 
-      const shipments = JSON.parse(localStorage.getItem("shipments") || "[]");
-      localStorage.setItem("shipments", JSON.stringify([...shipments, ...importedShipments]));
+      storage.setItem("shipments", JSON.stringify(importedShipments));
       renderShipments();
       searchInput.dispatchEvent(new Event("input"));
-      alert(`Zaimportowano ${importedShipments.length} przesyłek.`);
+      alert(`Zaimportowano ${importedShipments.length} przesyłek i zastąpiono bieżącą listę.`);
     } catch (error) {
       alert(`Nie udało się zaimportować pliku: ${error.message}`);
     } finally {
@@ -158,7 +376,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function renderShipments() {
-    const shipments = JSON.parse(localStorage.getItem("shipments") || "[]");
+    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
     tableBody.innerHTML = "";
     const orderedShipments = shipments.map((shipment, index) => ({ shipment, index }));
     if (shipmentSort.value !== "default") {
@@ -207,20 +425,31 @@ document.addEventListener("DOMContentLoaded", function () {
       tr.appendChild(projectCell);
 
       const actionsCell = document.createElement("td");
+      const actionButtons = document.createElement("div");
+      actionButtons.className = "action-buttons";
       const actions = [
         ["Edytuj", "✏️", () => window.editEntry(index)],
         ["Usuń", "🗑️", () => window.deleteEntry(index)],
         ["Kopiuj do schowka", "📋", () => copyToClipboard(index)],
-        ["Podpisz", "✍️", () => openSignatureModal(index)]
+        ["Drukuj potwierdzenie odbioru", "🖨️", () => printReceipt(index)],
+        ["Podpisz", "✍️", () => openSignatureModal(index)],
+        ["Notatki", "📝", () => openNotesModal(index)]
       ];
       actions.forEach(([title, icon, handler]) => {
         const button = document.createElement("button");
         button.type = "button";
         button.title = title;
         button.textContent = icon;
+        if (title === "Notatki" && shipment.notatki?.trim()) {
+          button.classList.add("has-note");
+        }
+        if (title === "Podpisz" && shipment.odbiorcaPodpis?.trim()) {
+          button.classList.add("has-signature");
+        }
         button.addEventListener("click", handler);
-        actionsCell.appendChild(button);
+        actionButtons.appendChild(button);
       });
+      actionsCell.appendChild(actionButtons);
       tr.appendChild(actionsCell);
 
       const statusCell = document.createElement("td");
@@ -238,14 +467,6 @@ document.addEventListener("DOMContentLoaded", function () {
       });
       statusSelect.addEventListener("change", () => window.updateStatus(index, statusSelect.value));
       statusCell.appendChild(statusSelect);
-      if (shipment.signature) {
-        const signatureButton = document.createElement("button");
-        signatureButton.type = "button";
-        signatureButton.title = "Pokaż podpis";
-        signatureButton.textContent = "🖼️";
-        signatureButton.addEventListener("click", () => window.showFullSignature(index));
-        statusCell.appendChild(signatureButton);
-      }
       tr.appendChild(statusCell);
       tableBody.appendChild(tr);
     });
@@ -304,30 +525,17 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   window.updateStatus = function(index, value) {
-    const shipments = JSON.parse(localStorage.getItem("shipments") || "[]");
+    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
     if (shipments[index]) {
       shipments[index].status = value;
-      localStorage.setItem("shipments", JSON.stringify(shipments));
+      storage.setItem("shipments", JSON.stringify(shipments));
       renderShipments();
       searchInput.dispatchEvent(new Event("input"));
     }
   };
 
-  window.showFullSignature = function(index) {
-    const shipments = JSON.parse(localStorage.getItem("shipments") || "[]");
-    const img = document.getElementById("fullSignatureImg");
-    if (shipments[index] && shipments[index].signature) {
-      img.src = shipments[index].signature;
-      document.getElementById("fullSignatureModal").style.display = "block";
-    }
-  };
-
-  window.closeFullSignatureModal = function() {
-    document.getElementById("fullSignatureModal").style.display = "none";
-  };
-
   window.editEntry = function (index) {
-    const shipments = JSON.parse(localStorage.getItem("shipments") || "[]");
+    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
     const s = shipments[index];
     document.getElementById("firma").value = s.firma;
     document.getElementById("numerListu").value = s.numerListu;
@@ -351,11 +559,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
   window.deleteEntry = function (index) {
     if (!confirm("Czy na pewno chcesz usunąć tę przesyłkę?")) return;
-    const shipments = JSON.parse(localStorage.getItem("shipments") || "[]");
+    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
     shipments.splice(index, 1);
-    localStorage.setItem("shipments", JSON.stringify(shipments));
+    storage.setItem("shipments", JSON.stringify(shipments));
     renderShipments();
   };
+
+  document.getElementById("numerListu").addEventListener("keydown", event => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    document.getElementById("data").focus();
+  });
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
@@ -379,7 +593,7 @@ document.addEventListener("DOMContentLoaded", function () {
       };
     });
 
-    const shipments = JSON.parse(localStorage.getItem("shipments") || "[]");
+    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
     const existingShipment = editIndex !== null ? shipments[editIndex] : null;
     const newShipment = {
       firma,
@@ -391,11 +605,12 @@ document.addEventListener("DOMContentLoaded", function () {
       zamowienie,
       projekt,
       zawartosc,
+      odbiorcaPodpis: existingShipment?.odbiorcaPodpis || "",
+      notatki: existingShipment?.notatki || "",
       status: existingShipment?.status || "na magazynie"
     };
 
     if (editIndex !== null) {
-      newShipment.signature = existingShipment.signature || null;
       shipments[editIndex] = newShipment;
       editIndex = null;
       document.getElementById("submitButton").textContent = "Dodaj przesyłkę";
@@ -403,16 +618,34 @@ document.addEventListener("DOMContentLoaded", function () {
       shipments.push(newShipment);
     }
 
-    localStorage.setItem("shipments", JSON.stringify(shipments));
+    storage.setItem("shipments", JSON.stringify(shipments));
     form.reset();
     document.getElementById("zawartoscFields").innerHTML = "";
     renderShipments();
   });
 
+  function resetShipmentFilters() {
+    searchInput.value = "";
+    statusFilter.value = "all";
+    shipmentSort.value = "default";
+    datePeriodFilter.value = "all";
+    dateFrom.value = "";
+    dateTo.value = "";
+    shipmentMonth.value = "";
+    dateRangeControls.hidden = true;
+    monthControls.hidden = true;
+    searchColumns.forEach(checkbox => {
+      checkbox.checked = true;
+    });
+    renderShipments();
+    applyShipmentFilters();
+  }
+
   searchInput.addEventListener("input", applyShipmentFilters);
   searchColumns.forEach(checkbox => checkbox.addEventListener("change", applyShipmentFilters));
   statusFilter.addEventListener("change", applyShipmentFilters);
   shipmentSort.addEventListener("change", renderShipments);
+  resetFiltersButton.addEventListener("click", resetShipmentFilters);
   datePeriodFilter.addEventListener("change", function () {
     dateRangeControls.hidden = this.value !== "range";
     monthControls.hidden = this.value !== "month";
@@ -421,12 +654,16 @@ document.addEventListener("DOMContentLoaded", function () {
   [dateFrom, dateTo, shipmentMonth].forEach(input => input.addEventListener("change", applyShipmentFilters));
 
   renderShipments();
-  addZawartoscField(); // Dodaj jedno puste pole domyślnie
+  addZawartoscField();
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  }
 });
 
 // Funkcja kopiująca dane jednego rekordu do schowka
 function copyToClipboard(index) {
-  const shipments = JSON.parse(localStorage.getItem("shipments") || "[]");
+  const shipments = JSON.parse(storage.getItem("shipments") || "[]");
   const entry = shipments[index];
   const contents = Array.isArray(entry.zawartosc) ? entry.zawartosc : [];
 
@@ -453,7 +690,7 @@ function copyToClipboard(index) {
     <table border="0" cellpadding="5" cellspacing="0" style="font-family: Arial; font-size: 14px;">
       <tr><th align="left">Firma przewozowa</th><td>${escapeHTML(entry.firma)}</td></tr>
       <tr><th align="left">Numer listu przewozowego</th><td>${escapeHTML(entry.numerListu)}</td></tr>
-      <tr><th align="left">Data odbioru</th><td>${escapeHTML(entry.data)}</td></tr>
+      <tr><th align="left">Data przyjęcia</th><td>${escapeHTML(entry.data)}</td></tr>
       <tr><th align="left">Adresat</th><td>${escapeHTML(entry.odbiorca)}</td></tr>
       <tr><th align="left">Nadawca</th><td>${escapeHTML(entry.nadawca)}</td></tr>
       <tr><th align="left">Rodzaj przesyłki</th><td>${escapeHTML(entry.rodzaj)}</td></tr>
@@ -465,7 +702,7 @@ function copyToClipboard(index) {
   const plainText = [
     `Firma przewozowa: ${entry.firma || ""}`,
     `Numer listu przewozowego: ${entry.numerListu || ""}`,
-    `Data odbioru: ${entry.data || ""}`,
+    `Data przyjęcia: ${entry.data || ""}`,
     `Adresat: ${entry.odbiorca || ""}`,
     `Nadawca: ${entry.nadawca || ""}`,
     `Rodzaj przesyłki: ${entry.rodzaj || ""}`,
@@ -486,6 +723,87 @@ function copyToClipboard(index) {
   document.removeEventListener("copy", listener);
 
   alert("Dane przesyłki zostały skopiowane do schowka.");
+}
+
+function printReceipt(index) {
+  const shipments = JSON.parse(storage.getItem("shipments") || "[]");
+  const entry = shipments[index];
+  if (!entry) return;
+
+  const contents = Array.isArray(entry.zawartosc) ? entry.zawartosc : [];
+  const contentsHTML = `
+    <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+      <tr style="background-color: #f0f0f0;">
+        <th>Nazwa</th><th>Ilość</th><th>Jednostka</th><th>Numer seryjny</th>
+      </tr>
+      ${contents.map(item => `
+        <tr>
+          <td>${escapeHTML(item.nazwa)}</td>
+          <td>${escapeHTML(item.ilosc)}</td>
+          <td>${escapeHTML(item.jednostka)}</td>
+          <td>${escapeHTML(item.serial)}</td>
+        </tr>
+      `).join("")}
+    </table>
+  `;
+  const details = [
+    ["Firma przewozowa", entry.firma],
+    ["Numer listu przewozowego", entry.numerListu],
+    ["Data odbioru", entry.data],
+    ["Adresat", entry.odbiorca],
+    ["Nadawca", entry.nadawca],
+    ["Rodzaj przesyłki", entry.rodzaj],
+    ["Zawartość", contentsHTML],
+    ["Numer zamówienia", entry.zamowienie],
+    ["Numer projektu", entry.projekt]
+  ];
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pl">
+      <head>
+        <meta charset="utf-8">
+        <title>Potwierdzenie odbioru</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; font-size: 11pt;">
+        <h1 style="text-align: center; font-size: 18pt; margin-bottom: 48px;">Potwierdzenie odbioru</h1>
+        <table border="0" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+          ${details.map(([label, value]) => `
+            <tr>
+              <th align="left" valign="top" style="width: 30%;">${label}</th>
+              <td>${label === "Zawartość" ? value : escapeHTML(value)}</td>
+            </tr>
+          `).join("")}
+        </table>
+        <table border="0" cellpadding="12" cellspacing="0" style="margin-top: 110px; width: 100%; text-align: center;">
+          <tr>
+            <td style="width: 38%; vertical-align: top;">
+              <div style="height: 55px; border-bottom: 1px solid #000;"></div>
+              <p>Wystawił</p>
+            </td>
+            <td style="width: 24%; vertical-align: top;">&nbsp;</td>
+            <td style="width: 38%; vertical-align: top;">
+              <div style="height: 55px; border-bottom: 1px solid #000;"></div>
+              <p>Odebrał</p>
+              <div style="height: 35px; margin-top: 30px; border-bottom: 1px solid #000;"></div>
+              <p>Data odbioru</p>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert("Nie udało się otworzyć okna wydruku.");
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  setTimeout(() => {
+    printWindow.focus();
+    printWindow.print();
+  }, 300);
 }
 
 function escapeHTML(value) {
@@ -535,12 +853,22 @@ function addZawartoscField(nazwa = "", ilosc = "", jednostka = "szt.", serial = 
   serialInput.name = "serial";
   serialInput.value = serial;
   serialInput.placeholder = "Numer seryjny";
+  serialInput.addEventListener("keydown", event => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (serialInput.value && !serialInput.value.endsWith(", ")) {
+      serialInput.value += ", ";
+    }
+  });
   serialCell.appendChild(serialInput);
 
   const removeCell = document.createElement("td");
   const removeButton = document.createElement("button");
   removeButton.type = "button";
-  removeButton.textContent = "❌";
+  removeButton.className = "remove-item-button";
+  removeButton.textContent = "X";
+  removeButton.title = "Usuń pozycję";
+  removeButton.setAttribute("aria-label", "Usuń pozycję");
   removeButton.addEventListener("click", () => tr.remove());
   removeCell.appendChild(removeButton);
 
@@ -553,82 +881,38 @@ function addZawartoscField(nazwa = "", ilosc = "", jednostka = "szt.", serial = 
 // ------------------------
 
 function openSignatureModal(index) {
+  const shipments = JSON.parse(storage.getItem("shipments") || "[]");
+  const shipment = shipments[index];
+  if (!shipment) return;
+
   currentSignatureIndex = index;
+  recipientNameInput.value = shipment.odbiorcaPodpis || "";
   document.getElementById("signatureModal").style.display = "block";
-  resizeSignatureCanvas();
+  recipientNameInput.focus();
+  recipientNameInput.select();
 }
 
 function closeSignatureModal() {
   document.getElementById("signatureModal").style.display = "none";
-  clearSignature();
+  currentSignatureIndex = null;
 }
 
-const canvas = document.getElementById("signatureCanvas");
-const ctx = canvas.getContext("2d");
-ctx.lineWidth = 2;         // 👈 tutaj ustalasz grubość linii
-ctx.lineCap = "round";     // zaokrąglenie końców linii (polecam!)
-ctx.strokeStyle = "#000";  // kolor linii
-let drawing = false;
+function saveSignature(showConfirmation = true) {
+  const recipientName = document.getElementById("recipientNameInput").value.trim();
+  if (!recipientName) {
+    alert("Wpisz imię i nazwisko odbiorcy.");
+    document.getElementById("recipientNameInput").focus();
+    return;
+  }
 
-function resizeSignatureCanvas() {
-  canvas.width = canvas.offsetWidth;
-  canvas.height = 300;
-}
-
-window.addEventListener("resize", resizeSignatureCanvas);
-window.addEventListener("load", resizeSignatureCanvas);
-
-canvas.addEventListener("mousedown", startDraw);
-canvas.addEventListener("mousemove", draw);
-canvas.addEventListener("mouseup", () => drawing = false);
-canvas.addEventListener("mouseout", () => drawing = false);
-canvas.addEventListener("touchstart", startDraw);
-canvas.addEventListener("touchmove", drawTouch);
-canvas.addEventListener("touchend", () => drawing = false);
-
-function startDraw(e) {
-  drawing = true;
-  ctx.beginPath();
-  ctx.moveTo(getX(e), getY(e));
-  e.preventDefault();
-}
-
-function draw(e) {
-  if (!drawing) return;
-  ctx.lineTo(getX(e), getY(e));
-  ctx.stroke();
-  e.preventDefault();
-}
-
-function drawTouch(e) {
-  const touch = e.touches[0];
-  const mouseEvent = new MouseEvent("mousemove", {
-    clientX: touch.clientX,
-    clientY: touch.clientY
-  });
-  draw(mouseEvent);
-}
-
-function getX(e) {
-  return e.clientX ? e.clientX - canvas.getBoundingClientRect().left : e.touches[0].clientX - canvas.getBoundingClientRect().left;
-}
-
-function getY(e) {
-  return e.clientY ? e.clientY - canvas.getBoundingClientRect().top : e.touches[0].clientY - canvas.getBoundingClientRect().top;
-}
-
-function clearSignature() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-}
-
-function saveSignature() {
-  const dataURL = canvas.toDataURL("image/png");
-
-  const shipments = JSON.parse(localStorage.getItem("shipments") || "[]");
+  const shipments = JSON.parse(storage.getItem("shipments") || "[]");
   if (currentSignatureIndex !== null && shipments[currentSignatureIndex]) {
-    shipments[currentSignatureIndex].signature = dataURL;
-    localStorage.setItem("shipments", JSON.stringify(shipments));
-    alert("Podpis został zapisany.");
+    shipments[currentSignatureIndex].odbiorcaPodpis = recipientName;
+    delete shipments[currentSignatureIndex].signature;
+    storage.setItem("shipments", JSON.stringify(shipments));
+    if (showConfirmation) alert("Dane odbiorcy zostały zapisane.");
+  } else {
+    return;
   }
 
   closeSignatureModal();

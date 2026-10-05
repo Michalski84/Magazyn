@@ -1,0 +1,17 @@
+{
+  "name": "magazyn1",
+  "version": "1.0.0",
+  "description": "Elektroniczna aplikacja magazynowa z bazą SQLite",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "electron-rebuild -f -w better-sqlite3"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0"
+  },
+  "devDependencies": {
+    "electron": "^31.7.0",
+    "electron-rebuild": "^3.2.9"
+  }
+}
