@@ -3,3 +3,6 @@ dist/
 .vite/
 *.log
 data/storage.json
+.env
+*.dump
+backups/

@@ -1,16 +1,36 @@
-const storage = window.electronBridge?.storage || window.localStorage;
-let currentSignatureIndex = null;
+let shipments = [];
+let currentSignatureId = null;
+let renderShipmentList = () => {};
+let reloadShipmentList = async () => {};
+let toastTimeout = null;
 const recipientNameInput = document.getElementById("recipientNameInput");
+
+function showToast(message, type = "success") {
+  const toast = document.getElementById("toastNotification");
+  if (!toast) return;
+
+  clearTimeout(toastTimeout);
+  toast.textContent = message;
+  toast.classList.toggle("toast-notification--error", type === "error");
+  toast.classList.toggle("toast-notification--danger", type === "danger");
+  toast.hidden = false;
+  toastTimeout = setTimeout(() => {
+    toast.hidden = true;
+  }, 3000);
+}
 
 recipientNameInput.addEventListener("click", () => recipientNameInput.focus());
 recipientNameInput.addEventListener("keydown", event => {
   if (event.key !== "Enter") return;
   event.preventDefault();
-  saveSignature(false);
+  saveSignature();
 });
 
 document.addEventListener("DOMContentLoaded", function () {
   const form = document.getElementById("shipmentForm");
+  const addZawartoscButton = document.getElementById("addZawartoscButton");
+  document.getElementById("saveSignatureButton").addEventListener("click", () => saveSignature());
+  document.getElementById("closeSignatureModalButton").addEventListener("click", closeSignatureModal);
   const tableBody = document.querySelector("#shipmentsTable tbody");
   const searchInput = document.getElementById("searchInput");
   const resetFiltersButton = document.getElementById("resetFiltersButton");
@@ -34,15 +54,113 @@ document.addEventListener("DOMContentLoaded", function () {
   const notesEditButton = document.getElementById("notesEditButton");
   const notesDeleteButton = document.getElementById("notesDeleteButton");
   const notesCloseButton = document.getElementById("notesCloseButton");
+  const appContent = document.getElementById("appContent");
+  const loginScreen = document.getElementById("loginScreen");
+  const loginForm = document.getElementById("loginForm");
+  const loginError = document.getElementById("loginError");
+  const loginUsername = document.getElementById("loginUsername");
+  const loginPassword = document.getElementById("loginPassword");
+  const logoutButton = document.getElementById("logoutButton");
+  const currentUserName = document.getElementById("currentUserName");
+  const appError = document.getElementById("appError");
   const excelHeaders = [
     "Firma przewozowa", "Numer listu", "Data przyjęcia", "Adresat", "Nadawca",
-    "Rodzaj przesyłki", "Zawartość", "Numer zamówienia", "Numer projektu", "Status",
+    "Rodzaj przesyłki", "Ilość przesyłek", "Zawartość", "Numer zamówienia", "Numer projektu", "Status",
     "Imię i nazwisko odbiorcy", "Notatki"
   ];
   const scrollBehavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
-  let editIndex = null;
-  let currentNotesIndex = null;
+  let editId = null;
+  let editVersion = null;
+  let currentNotesId = null;
   let scrollAnimationFrame = null;
+
+  addZawartoscButton.addEventListener("click", () => addZawartoscField());
+
+  function showAppError(message) {
+    appError.textContent = message;
+    appError.hidden = false;
+  }
+
+  function clearAppError() {
+    appError.textContent = "";
+    appError.hidden = true;
+  }
+
+  async function runServerAction(action) {
+    clearAppError();
+    try {
+      await action();
+    } catch (error) {
+      showAppError(error.message);
+      if (error.status === 409 || error.status === 404) await reloadShipmentList();
+      else renderShipments();
+      alert(`Nie udało się wykonać operacji: ${error.message}`);
+    }
+  }
+
+  async function loadShipments() {
+    shipments = await window.shipmentApi.list();
+    clearAppError();
+    renderShipments();
+  }
+
+  reloadShipmentList = async () => {
+    try {
+      await loadShipments();
+      return true;
+    } catch (error) {
+      showAppError(`Nie udało się odświeżyć listy przesyłek: ${error.message}`);
+      return false;
+    }
+  };
+
+  function showSignedIn(user) {
+    loginScreen.hidden = true;
+    appContent.hidden = false;
+    currentUserName.textContent = user.username;
+    loginError.hidden = true;
+    loginError.textContent = "";
+  }
+
+  loginForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    loginError.hidden = true;
+    const button = loginForm.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+      const { user } = await window.shipmentApi.login(loginUsername.value.trim(), loginPassword.value);
+      loginPassword.value = "";
+      showSignedIn(user);
+      try {
+        await loadShipments();
+      } catch (error) {
+        showAppError(`Nie udało się pobrać listy przesyłek: ${error.message}`);
+      }
+    } catch (error) {
+      loginError.textContent = error.message;
+      loginError.hidden = false;
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  logoutButton.addEventListener("click", () => runServerAction(async () => {
+    await window.shipmentApi.logout();
+    shipments = [];
+    appContent.hidden = true;
+    loginScreen.hidden = false;
+    loginForm.reset();
+    loginUsername.focus();
+  }));
+
+  window.addEventListener("session-expired", () => {
+    shipments = [];
+    appContent.hidden = true;
+    loginScreen.hidden = false;
+    loginError.textContent = "Sesja wygasła. Zaloguj się ponownie.";
+    loginError.hidden = false;
+    loginPassword.value = "";
+  });
 
   function scrollPageTo(targetPosition) {
     if (scrollBehavior === "auto") {
@@ -67,12 +185,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   refreshAppButton.addEventListener("click", async () => {
-    if (!confirm("Odświeżyć aplikację? Niezapisane dane formularza zostaną utracone.")) return;
-    try {
-      const cacheNames = await caches.keys();
-      await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
-    } catch {}
-    window.location.reload();
+    if (await reloadShipmentList()) showToast("Lista przesyłek została odświeżona.");
   });
 
   document.getElementById("scrollToTop").addEventListener("click", function () {
@@ -84,11 +197,10 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   function openNotesModal(index) {
-    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
     const shipment = shipments[index];
     if (!shipment) return;
 
-    currentNotesIndex = index;
+    currentNotesId = shipment.id;
     notesTextarea.value = shipment.notatki || "";
     const hasNote = Boolean(notesTextarea.value.trim());
     notesTextarea.readOnly = false;
@@ -110,7 +222,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function closeNotesModal() {
     notesModal.style.display = "none";
     notesModal.setAttribute("aria-hidden", "true");
-    currentNotesIndex = null;
+    currentNotesId = null;
   }
 
   window.addEventListener("focus", focusNotesTextarea);
@@ -118,8 +230,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!document.hidden) focusNotesTextarea();
   });
 
-  notesSaveButton.addEventListener("click", function () {
-    if (currentNotesIndex === null) return;
+  notesSaveButton.addEventListener("click", () => runServerAction(async () => {
+    if (currentNotesId === null) return;
     const note = notesTextarea.value.trim();
     if (!note) {
       alert("Wpisz treść notatki przed zapisaniem.");
@@ -127,30 +239,31 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
-    if (!shipments[currentNotesIndex]) return;
-    shipments[currentNotesIndex].notatki = note;
-    storage.setItem("shipments", JSON.stringify(shipments));
+    const shipment = shipments.find(item => String(item.id) === String(currentNotesId));
+    if (!shipment) return;
+    const updated = await window.shipmentApi.patch(shipment.id, { version: shipment.version, notatki: note });
+    shipments = shipments.map(item => item.id === updated.id ? updated : item);
     renderShipments();
     closeNotesModal();
-  });
+    showToast("Notatka została zapisana.");
+  }));
 
   notesEditButton.addEventListener("click", function () {
-    if (currentNotesIndex === null) return;
+    if (currentNotesId === null) return;
     notesTextarea.readOnly = false;
     focusNotesTextarea();
   });
 
-  notesDeleteButton.addEventListener("click", function () {
-    if (currentNotesIndex === null || !confirm("Czy na pewno usunąć tę notatkę?")) return;
-    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
-    if (shipments[currentNotesIndex]) {
-      shipments[currentNotesIndex].notatki = "";
-      storage.setItem("shipments", JSON.stringify(shipments));
+  notesDeleteButton.addEventListener("click", () => runServerAction(async () => {
+    if (currentNotesId === null || !confirm("Czy na pewno usunąć tę notatkę?")) return;
+    const shipment = shipments.find(item => String(item.id) === String(currentNotesId));
+    if (shipment) {
+      const updated = await window.shipmentApi.patch(shipment.id, { version: shipment.version, notatki: "" });
+      shipments = shipments.map(item => item.id === updated.id ? updated : item);
       renderShipments();
     }
     closeNotesModal();
-  });
+  }));
 
   notesCloseButton.addEventListener("click", closeNotesModal);
   notesModal.addEventListener("click", event => {
@@ -233,7 +346,6 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   exportExcelButton.addEventListener("click", function () {
-    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
     const rows = shipments.map(shipment => [
       shipment.firma,
       shipment.numerListu,
@@ -241,6 +353,7 @@ document.addEventListener("DOMContentLoaded", function () {
       shipment.odbiorca,
       shipment.nadawca,
       shipment.rodzaj,
+      shipment.iloscPrzesylek ?? 1,
       formatShipmentContentsForExport(shipment),
       shipment.zamowienie,
       shipment.projekt || "",
@@ -253,13 +366,12 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   exportVisibleExcelButton.addEventListener("click", function () {
-    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
-    const visibleIndices = Array.from(tableBody.rows)
+    const visibleIds = Array.from(tableBody.rows)
       .filter(row => row.style.display !== "none")
-      .map(row => Number(row.dataset.shipmentIndex));
+      .map(row => row.dataset.shipmentId);
 
-    const rows = visibleIndices
-      .map(index => shipments[index])
+    const rows = visibleIds
+      .map(id => shipments.find(shipment => String(shipment.id) === id))
       .filter(Boolean)
       .map(shipment => [
         shipment.firma,
@@ -268,6 +380,7 @@ document.addEventListener("DOMContentLoaded", function () {
         shipment.odbiorca,
         shipment.nadawca,
         shipment.rodzaj,
+        shipment.iloscPrzesylek ?? 1,
         formatShipmentContentsForExport(shipment),
         shipment.zamowienie,
         shipment.projekt || "",
@@ -306,7 +419,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const importedRows = XLSX.utils.sheet_to_json(firstSheet, { defval: "", raw: false });
       if (!importedRows.length) throw new Error("Arkusz nie zawiera przesyłek.");
-      const requiredHeaders = excelHeaders.filter(header => header !== "Adresat" && header !== "Numer projektu" && header !== "Data przyjęcia" && header !== "Imię i nazwisko odbiorcy" && header !== "Notatki");
+      const requiredHeaders = excelHeaders.filter(header => header !== "Ilość przesyłek" && header !== "Adresat" && header !== "Numer projektu" && header !== "Data przyjęcia" && header !== "Imię i nazwisko odbiorcy" && header !== "Notatki");
       const hasRecipientHeader = Object.hasOwn(importedRows[0], "Adresat") || Object.hasOwn(importedRows[0], "Odbiorca");
       const hasReceiptDateHeader = Object.hasOwn(importedRows[0], "Data przyjęcia") || Object.hasOwn(importedRows[0], "Data odbioru");
       if (!requiredHeaders.every(header => Object.hasOwn(importedRows[0], header)) || !hasRecipientHeader || !hasReceiptDateHeader) {
@@ -327,6 +440,9 @@ document.addEventListener("DOMContentLoaded", function () {
           odbiorca: String(row["Adresat"] ?? row["Odbiorca"]).trim(),
           nadawca: String(row["Nadawca"]).trim(),
           rodzaj: String(row["Rodzaj przesyłki"]).trim(),
+          iloscPrzesylek: row["Ilość przesyłek"] === "" || row["Ilość przesyłek"] == null
+            ? 1
+            : Number(row["Ilość przesyłek"]),
           zamowienie: String(row["Numer zamówienia"]).trim(),
           projekt: String(row["Numer projektu"] ?? "").trim(),
           odbiorcaPodpis: String(row["Imię i nazwisko odbiorcy"] ?? "").trim(),
@@ -342,7 +458,14 @@ document.addEventListener("DOMContentLoaded", function () {
         return shipment;
       });
 
-      storage.setItem("shipments", JSON.stringify(importedShipments));
+      if (!confirm(`Import zastąpi wspólną listę wszystkich użytkowników (${shipments.length} przesyłek). Czy na pewno kontynuować?`)) return;
+      shipments = await window.shipmentApi.import(importedShipments);
+      editId = null;
+      editVersion = null;
+      form.reset();
+      document.getElementById("zawartoscFields").innerHTML = "";
+      addZawartoscField();
+      document.getElementById("submitButton").textContent = "Dodaj przesyłkę";
       renderShipments();
       searchInput.dispatchEvent(new Event("input"));
       alert(`Zaimportowano ${importedShipments.length} przesyłek i zastąpiono bieżącą listę.`);
@@ -376,8 +499,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function renderShipments() {
-    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
     tableBody.innerHTML = "";
+    const fragment = document.createDocumentFragment();
     const orderedShipments = shipments.map((shipment, index) => ({ shipment, index }));
     if (shipmentSort.value !== "default") {
       orderedShipments.sort((a, b) => {
@@ -390,7 +513,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     orderedShipments.forEach(({ shipment, index }) => {
       const tr = document.createElement("tr");
-      tr.dataset.shipmentIndex = String(index);
+      tr.dataset.shipmentId = String(shipment.id);
       tr.dataset.status = shipment.status || "na magazynie";
       tr.dataset.shipmentDate = shipment.data || "";
 
@@ -399,7 +522,14 @@ document.addEventListener("DOMContentLoaded", function () {
       numberCell.textContent = String(index + 1);
       tr.appendChild(numberCell);
 
-      [shipment.firma, shipment.numerListu, shipment.data, shipment.odbiorca, shipment.nadawca, shipment.rodzaj]
+      [
+        shipment.firma,
+        shipment.numerListu,
+        shipment.data,
+        shipment.odbiorca,
+        shipment.nadawca,
+        formatShipmentTypeAndQuantity(shipment)
+      ]
         .forEach(value => {
           const cell = document.createElement("td");
           cell.textContent = value ?? "";
@@ -428,12 +558,12 @@ document.addEventListener("DOMContentLoaded", function () {
       const actionButtons = document.createElement("div");
       actionButtons.className = "action-buttons";
       const actions = [
-        ["Edytuj", "✏️", () => window.editEntry(index)],
-        ["Usuń", "🗑️", () => window.deleteEntry(index)],
-        ["Kopiuj do schowka", "📋", () => copyToClipboard(index)],
-        ["Drukuj potwierdzenie odbioru", "🖨️", () => printReceipt(index)],
-        ["Podpisz", "✍️", () => openSignatureModal(index)],
-        ["Notatki", "📝", () => openNotesModal(index)]
+        ["Edytuj", "✏️", () => window.editEntry(shipment.id)],
+        ["Usuń", "🗑️", () => window.deleteEntry(shipment.id)],
+        ["Kopiuj do schowka", "📋", () => copyToClipboard(shipment.id)],
+        ["Drukuj potwierdzenie odbioru", "🖨️", () => printReceipt(shipment.id)],
+        ["Podpisz", "✍️", () => openSignatureModal(shipment.id)],
+        ["Notatki", "📝", () => openNotesModalById(shipment.id)]
       ];
       actions.forEach(([title, icon, handler]) => {
         const button = document.createElement("button");
@@ -465,12 +595,19 @@ document.addEventListener("DOMContentLoaded", function () {
         option.selected = tr.dataset.status === value;
         statusSelect.appendChild(option);
       });
-      statusSelect.addEventListener("change", () => window.updateStatus(index, statusSelect.value));
+      statusSelect.addEventListener("change", () => window.updateStatus(shipment.id, statusSelect.value));
       statusCell.appendChild(statusSelect);
       tr.appendChild(statusCell);
-      tableBody.appendChild(tr);
+      fragment.appendChild(tr);
     });
+    tableBody.appendChild(fragment);
     applyShipmentFilters();
+  }
+  renderShipmentList = renderShipments;
+
+  function openNotesModalById(id) {
+    const index = shipments.findIndex(shipment => String(shipment.id) === String(id));
+    if (index >= 0) openNotesModal(index);
   }
 
   function applyShipmentFilters() {
@@ -524,25 +661,27 @@ document.addEventListener("DOMContentLoaded", function () {
     return shipmentDate >= startDate && shipmentDate <= today;
   }
 
-  window.updateStatus = function(index, value) {
-    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
-    if (shipments[index]) {
-      shipments[index].status = value;
-      storage.setItem("shipments", JSON.stringify(shipments));
+  window.updateStatus = function(id, value) {
+    runServerAction(async () => {
+      const shipment = shipments.find(item => String(item.id) === String(id));
+      if (!shipment) return;
+      const updated = await window.shipmentApi.patch(id, { version: shipment.version, status: value });
+      shipments = shipments.map(item => item.id === updated.id ? updated : item);
       renderShipments();
       searchInput.dispatchEvent(new Event("input"));
-    }
+    });
   };
 
-  window.editEntry = function (index) {
-    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
-    const s = shipments[index];
+  window.editEntry = function (id) {
+    const s = shipments.find(item => String(item.id) === String(id));
+    if (!s) return;
     document.getElementById("firma").value = s.firma;
     document.getElementById("numerListu").value = s.numerListu;
     document.getElementById("data").value = s.data;
     document.getElementById("odbiorca").value = s.odbiorca;
     document.getElementById("nadawca").value = s.nadawca;
     document.getElementById("rodzaj").value = s.rodzaj;
+    document.getElementById("iloscPrzesylek").value = s.iloscPrzesylek ?? 1;
     document.getElementById("zamowienie").value = s.zamowienie;
     document.getElementById("projekt").value = s.projekt || "";
 
@@ -552,17 +691,22 @@ document.addEventListener("DOMContentLoaded", function () {
       addZawartoscField(z.nazwa, z.ilosc, z.jednostka, z.serial)
     );
 
-    editIndex = index;
+    editId = s.id;
+    editVersion = s.version;
     document.getElementById("submitButton").textContent = "Zapisz zmiany";
     form.scrollIntoView({ behavior: scrollBehavior, block: "start" });
   };
 
-  window.deleteEntry = function (index) {
+  window.deleteEntry = function (id) {
     if (!confirm("Czy na pewno chcesz usunąć tę przesyłkę?")) return;
-    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
-    shipments.splice(index, 1);
-    storage.setItem("shipments", JSON.stringify(shipments));
-    renderShipments();
+    runServerAction(async () => {
+      const shipment = shipments.find(item => String(item.id) === String(id));
+      if (!shipment) return;
+      await window.shipmentApi.remove(id, shipment.version);
+      shipments = shipments.filter(item => String(item.id) !== String(id));
+      renderShipments();
+      showToast("Paczka została usunięta.", "danger");
+    });
   };
 
   document.getElementById("numerListu").addEventListener("keydown", event => {
@@ -574,54 +718,51 @@ document.addEventListener("DOMContentLoaded", function () {
   form.addEventListener("submit", function (e) {
     e.preventDefault();
 
-    const firma = document.getElementById("firma").value.trim();
-    const numerListu = document.getElementById("numerListu").value.trim();
-    const data = document.getElementById("data").value;
-    const odbiorca = document.getElementById("odbiorca").value.trim();
-    const nadawca = document.getElementById("nadawca").value.trim();
-    const rodzaj = document.getElementById("rodzaj").value;
-    const zamowienie = document.getElementById("zamowienie").value.trim();
-    const projekt = document.getElementById("projekt").value.trim();
-
-    const zawartosc = Array.from(document.querySelectorAll(".zawartosc-item")).map(row => {
-      const inputs = row.querySelectorAll("input, select");
-      return {
-        nazwa: inputs[0].value.trim(),
-        ilosc: parseInt(inputs[1].value),
-        jednostka: inputs[2].value,
-        serial: inputs[3].value.trim()
+    runServerAction(async () => {
+      const newShipment = {
+        firma: document.getElementById("firma").value.trim(),
+        numerListu: document.getElementById("numerListu").value.trim(),
+        data: document.getElementById("data").value,
+        odbiorca: document.getElementById("odbiorca").value.trim(),
+        nadawca: document.getElementById("nadawca").value.trim(),
+        rodzaj: document.getElementById("rodzaj").value,
+        iloscPrzesylek: Number(document.getElementById("iloscPrzesylek").value),
+        zamowienie: document.getElementById("zamowienie").value.trim(),
+        projekt: document.getElementById("projekt").value.trim(),
+        zawartosc: Array.from(document.querySelectorAll(".zawartosc-item")).map(row => {
+          const inputs = row.querySelectorAll("input, select");
+          return {
+            nazwa: inputs[0].value.trim(),
+            ilosc: Number.parseInt(inputs[1].value, 10),
+            jednostka: inputs[2].value,
+            serial: inputs[3].value.trim()
+          };
+        })
       };
+
+      if (editId !== null) {
+        const existing = shipments.find(shipment => shipment.id === editId);
+        if (!existing) throw new Error("Nie znaleziono edytowanej przesyłki. Odśwież listę.");
+        const updated = await window.shipmentApi.update(editId, {
+          ...newShipment,
+          status: existing.status,
+          odbiorcaPodpis: existing.odbiorcaPodpis,
+          notatki: existing.notatki,
+          version: editVersion
+        });
+        shipments = shipments.map(shipment => shipment.id === updated.id ? updated : shipment);
+        editId = null;
+        editVersion = null;
+        document.getElementById("submitButton").textContent = "Dodaj przesyłkę";
+      } else {
+        shipments.push(await window.shipmentApi.create(newShipment));
+      }
+
+      form.reset();
+      document.getElementById("zawartoscFields").innerHTML = "";
+      addZawartoscField();
+      renderShipments();
     });
-
-    const shipments = JSON.parse(storage.getItem("shipments") || "[]");
-    const existingShipment = editIndex !== null ? shipments[editIndex] : null;
-    const newShipment = {
-      firma,
-      numerListu,
-      data,
-      odbiorca,
-      nadawca,
-      rodzaj,
-      zamowienie,
-      projekt,
-      zawartosc,
-      odbiorcaPodpis: existingShipment?.odbiorcaPodpis || "",
-      notatki: existingShipment?.notatki || "",
-      status: existingShipment?.status || "na magazynie"
-    };
-
-    if (editIndex !== null) {
-      shipments[editIndex] = newShipment;
-      editIndex = null;
-      document.getElementById("submitButton").textContent = "Dodaj przesyłkę";
-    } else {
-      shipments.push(newShipment);
-    }
-
-    storage.setItem("shipments", JSON.stringify(shipments));
-    form.reset();
-    document.getElementById("zawartoscFields").innerHTML = "";
-    renderShipments();
   });
 
   function resetShipmentFilters() {
@@ -653,18 +794,37 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   [dateFrom, dateTo, shipmentMonth].forEach(input => input.addEventListener("change", applyShipmentFilters));
 
-  renderShipments();
   addZawartoscField();
+  loginUsername.focus();
+
+  window.shipmentApi.session().then(async ({ user }) => {
+    if (!user) return;
+    showSignedIn(user);
+    try {
+      await loadShipments();
+    } catch (error) {
+      showAppError(`Nie udało się pobrać listy przesyłek: ${error.message}`);
+    }
+  }).catch(error => {
+    loginError.textContent = `Nie udało się połączyć z serwerem: ${error.message}`;
+    loginError.hidden = false;
+  });
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+    navigator.serviceWorker.register("/sw.js").catch(error => {
+      showAppError(`Nie udało się zaktualizować obsługi pamięci podręcznej: ${error.message}`);
+    });
   }
+
+  window.setInterval(() => {
+    if (!document.hidden && !appContent.hidden) reloadShipmentList();
+  }, 30_000);
 });
 
 // Funkcja kopiująca dane jednego rekordu do schowka
-function copyToClipboard(index) {
-  const shipments = JSON.parse(storage.getItem("shipments") || "[]");
-  const entry = shipments[index];
+function copyToClipboard(id) {
+  const entry = shipments.find(shipment => String(shipment.id) === String(id));
+  if (!entry) return;
   const contents = Array.isArray(entry.zawartosc) ? entry.zawartosc : [];
 
   const zawartoscHTML = `
@@ -693,7 +853,7 @@ function copyToClipboard(index) {
       <tr><th align="left">Data przyjęcia</th><td>${escapeHTML(entry.data)}</td></tr>
       <tr><th align="left">Adresat</th><td>${escapeHTML(entry.odbiorca)}</td></tr>
       <tr><th align="left">Nadawca</th><td>${escapeHTML(entry.nadawca)}</td></tr>
-      <tr><th align="left">Rodzaj przesyłki</th><td>${escapeHTML(entry.rodzaj)}</td></tr>
+      <tr><th align="left">Rodzaj przesyłki</th><td>${escapeHTML(formatShipmentTypeAndQuantity(entry))}</td></tr>
       <tr><th align="left">Zawartość</th><td>${zawartoscHTML}</td></tr>
       <tr><th align="left">Numer zamówienia</th><td>${escapeHTML(entry.zamowienie)}</td></tr>
       <tr><th align="left">Numer projektu</th><td>${escapeHTML(entry.projekt)}</td></tr>
@@ -705,7 +865,7 @@ function copyToClipboard(index) {
     `Data przyjęcia: ${entry.data || ""}`,
     `Adresat: ${entry.odbiorca || ""}`,
     `Nadawca: ${entry.nadawca || ""}`,
-    `Rodzaj przesyłki: ${entry.rodzaj || ""}`,
+    `Rodzaj przesyłki: ${formatShipmentTypeAndQuantity(entry)}`,
     "Zawartość:",
     ...contents.map(item => `${item.nazwa || ""} (${item.ilosc || ""} ${item.jednostka || ""}${item.serial ? `, SN: ${item.serial}` : ""})`),
     `Numer zamówienia: ${entry.zamowienie || ""}`,
@@ -719,15 +879,20 @@ function copyToClipboard(index) {
   };
 
   document.addEventListener("copy", listener);
-  document.execCommand("copy");
-  document.removeEventListener("copy", listener);
-
-  alert("Dane przesyłki zostały skopiowane do schowka.");
+  let copied;
+  try {
+    copied = document.execCommand("copy");
+  } finally {
+    document.removeEventListener("copy", listener);
+  }
+  showToast(
+    copied ? "Dane przesyłki skopiowano do schowka." : "Nie udało się skopiować danych do schowka.",
+    copied ? "success" : "error"
+  );
 }
 
-function printReceipt(index) {
-  const shipments = JSON.parse(storage.getItem("shipments") || "[]");
-  const entry = shipments[index];
+function printReceipt(id) {
+  const entry = shipments.find(shipment => String(shipment.id) === String(id));
   if (!entry) return;
 
   const contents = Array.isArray(entry.zawartosc) ? entry.zawartosc : [];
@@ -749,10 +914,10 @@ function printReceipt(index) {
   const details = [
     ["Firma przewozowa", entry.firma],
     ["Numer listu przewozowego", entry.numerListu],
-    ["Data odbioru", entry.data],
+    ["Data przyjęcia", entry.data],
     ["Adresat", entry.odbiorca],
     ["Nadawca", entry.nadawca],
-    ["Rodzaj przesyłki", entry.rodzaj],
+    ["Rodzaj przesyłki", formatShipmentTypeAndQuantity(entry)],
     ["Zawartość", contentsHTML],
     ["Numer zamówienia", entry.zamowienie],
     ["Numer projektu", entry.projekt]
@@ -809,6 +974,12 @@ function printReceipt(index) {
 function escapeHTML(value) {
   const entities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
   return String(value ?? "").replace(/[&<>"']/g, character => entities[character]);
+}
+
+function formatShipmentTypeAndQuantity(shipment) {
+  const type = String(shipment.rodzaj ?? "").toLocaleLowerCase("pl-PL");
+  const capitalizedType = type.charAt(0).toLocaleUpperCase("pl-PL") + type.slice(1);
+  return `${capitalizedType}, ${shipment.iloscPrzesylek ?? 1} szt.`;
 }
 
 function addZawartoscField(nazwa = "", ilosc = "", jednostka = "szt.", serial = "") {
@@ -880,12 +1051,11 @@ function addZawartoscField(nazwa = "", ilosc = "", jednostka = "szt.", serial = 
 // OBSŁUGA PODPISU (MODAL)
 // ------------------------
 
-function openSignatureModal(index) {
-  const shipments = JSON.parse(storage.getItem("shipments") || "[]");
-  const shipment = shipments[index];
+function openSignatureModal(id) {
+  const shipment = shipments.find(item => String(item.id) === String(id));
   if (!shipment) return;
 
-  currentSignatureIndex = index;
+  currentSignatureId = shipment.id;
   recipientNameInput.value = shipment.odbiorcaPodpis || "";
   document.getElementById("signatureModal").style.display = "block";
   recipientNameInput.focus();
@@ -894,10 +1064,10 @@ function openSignatureModal(index) {
 
 function closeSignatureModal() {
   document.getElementById("signatureModal").style.display = "none";
-  currentSignatureIndex = null;
+  currentSignatureId = null;
 }
 
-function saveSignature(showConfirmation = true) {
+async function saveSignature() {
   const recipientName = document.getElementById("recipientNameInput").value.trim();
   if (!recipientName) {
     alert("Wpisz imię i nazwisko odbiorcy.");
@@ -905,16 +1075,22 @@ function saveSignature(showConfirmation = true) {
     return;
   }
 
-  const shipments = JSON.parse(storage.getItem("shipments") || "[]");
-  if (currentSignatureIndex !== null && shipments[currentSignatureIndex]) {
-    shipments[currentSignatureIndex].odbiorcaPodpis = recipientName;
-    delete shipments[currentSignatureIndex].signature;
-    storage.setItem("shipments", JSON.stringify(shipments));
-    if (showConfirmation) alert("Dane odbiorcy zostały zapisane.");
-  } else {
-    return;
+  const shipment = shipments.find(item => String(item.id) === String(currentSignatureId));
+  if (!shipment) return;
+  try {
+    const updated = await window.shipmentApi.patch(shipment.id, {
+      version: shipment.version,
+      odbiorcaPodpis: recipientName
+    });
+    shipments = shipments.map(item => item.id === updated.id ? updated : item);
+    closeSignatureModal();
+    renderShipmentList();
+    showToast("Podpis odbiorcy został zapisany.");
+  } catch (error) {
+    const appError = document.getElementById("appError");
+    appError.textContent = error.message;
+    appError.hidden = false;
+    if (error.status === 409) await reloadShipmentList();
+    alert(`Nie udało się zapisać danych odbiorcy: ${error.message}`);
   }
-
-  closeSignatureModal();
-  renderShipments();
 }

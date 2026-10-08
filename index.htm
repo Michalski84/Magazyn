@@ -7,9 +7,28 @@
   <link rel="stylesheet" href="src/style.css">
 </head>
 <body>
+  <section id="loginScreen" class="login-screen" aria-labelledby="loginTitle">
+    <form id="loginForm" class="login-form">
+      <h1 id="loginTitle">Rejestr przesyłek</h1>
+      <p>Zaloguj się, aby otworzyć wspólną listę przesyłek.</p>
+      <label for="loginUsername">Użytkownik</label>
+      <input id="loginUsername" name="username" type="text" autocomplete="username" maxlength="80" required>
+      <label for="loginPassword">Hasło</label>
+      <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+      <p id="loginError" class="error-message" role="alert" hidden></p>
+      <button type="submit">Zaloguj</button>
+    </form>
+  </section>
+
+  <div id="appContent" hidden>
+  <p id="appError" class="app-error" role="alert" hidden></p>
   <header class="app-header">
     <h1>Rejestr przesyłek przychodzących</h1>
-    <button type="button" id="refreshAppButton" title="Odśwież aplikację">↻ Odśwież</button>
+    <div class="header-actions">
+      <span>Zalogowany: <strong id="currentUserName"></strong></span>
+      <button type="button" id="logoutButton">Wyloguj</button>
+      <button type="button" id="refreshAppButton" title="Odśwież listę przesyłek">↻ Odśwież</button>
+    </div>
   </header>
 
   <div class="entry-workspace">
@@ -19,14 +38,19 @@
     <label>Data przyjęcia: <input type="date" id="data" required></label>
     <label>Adresat: <input type="text" id="odbiorca" required></label>
     <label>Nadawca: <input type="text" id="nadawca" required></label>
-    <label>Rodzaj przesyłki:
-      <select id="rodzaj">
-        <option value="Paczka">Paczka</option>
-        <option value="Koperta">Koperta</option>
-        <option value="Paleta">Paleta</option>
-        <option value="Paleta">Inne</option>
-      </select>
-    </label>
+    <div class="shipment-type-quantity">
+      <label>Rodzaj przesyłki:
+        <select id="rodzaj">
+          <option value="Paczka">Paczka</option>
+          <option value="Koperta">Koperta</option>
+          <option value="Paleta">Paleta</option>
+          <option value="Inne">Inne</option>
+        </select>
+      </label>
+      <label for="iloscPrzesylek">Ilość przesyłek:
+        <input type="number" id="iloscPrzesylek" min="1" max="2147483647" step="1" value="1" required>
+      </label>
+    </div>
     <label>Numer zamówienia: <input type="text" id="zamowienie"></label>
     <label>Numer projektu: <input type="text" id="projekt"></label>
 
@@ -46,7 +70,7 @@
       <!-- dynamiczne wiersze -->
     </tbody>
   </table>
-  <button type="button" onclick="addZawartoscField()">Dodaj pozycję</button>
+  <button type="button" id="addZawartoscButton">Dodaj pozycję</button>
 </div>
 
     <button type="submit" id="submitButton">Dodaj przesyłkę</button>
@@ -130,7 +154,7 @@
       <th>Data przyjęcia</th>
       <th>Adresat</th>
       <th>Nadawca</th>
-      <th>Rodzaj</th>
+      <th>Rodzaj / ilość</th>
       <th>Zawartość</th>
       <th>Zamówienie</th>
       <th>Numer projektu</th>
@@ -151,8 +175,8 @@
     <h3>Dane odbiorcy</h3>
     <label for="recipientNameInput">Imię i nazwisko odbiorcy</label>
     <input id="recipientNameInput" type="text" autocomplete="name" placeholder="Imię i nazwisko">
-    <button type="button" onclick="saveSignature()">Zapisz</button>
-    <button type="button" onclick="closeSignatureModal()">Zamknij</button>
+    <button type="button" id="saveSignatureButton">Zapisz</button>
+    <button type="button" id="closeSignatureModalButton">Zamknij</button>
   </div>
 </div>
 
@@ -171,8 +195,12 @@
     </div>
   </section>
 </div>
+  </div>
+
+<div id="toastNotification" class="toast-notification" role="status" aria-live="polite" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="src/api.js"></script>
 <script src="src/script.js"></script>
 </body>
 </html>
