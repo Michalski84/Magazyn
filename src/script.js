@@ -3,6 +3,9 @@ let currentSignatureId = null;
 let renderShipmentList = () => {};
 let reloadShipmentList = async () => {};
 let toastTimeout = null;
+const themeStorageKey = "shipment-register-theme";
+const savedTheme = localStorage.getItem(themeStorageKey);
+if (savedTheme === "light") document.body.dataset.theme = "light";
 const recipientNameInput = document.getElementById("recipientNameInput");
 
 function showToast(message, type = "success") {
@@ -32,9 +35,12 @@ document.addEventListener("DOMContentLoaded", function () {
   document.getElementById("saveSignatureButton").addEventListener("click", () => saveSignature());
   document.getElementById("closeSignatureModalButton").addEventListener("click", closeSignatureModal);
   const tableBody = document.querySelector("#shipmentsTable tbody");
-  const searchInput = document.getElementById("searchInput");
+  const globalSearchInput = document.getElementById("globalSearchInput");
   const resetFiltersButton = document.getElementById("resetFiltersButton");
-  const searchColumns = document.querySelectorAll(".search-col");
+  const searchFilters = document.querySelectorAll(".search-filter");
+  const companySearchFilter = document.getElementById("companySearchFilter");
+  const tableColumnToggles = document.querySelectorAll(".table-column-toggle");
+  const shipmentNumberColorsToggle = document.getElementById("shipmentNumberColorsToggle");
   const statusFilter = document.getElementById("statusFilter");
   const shipmentSort = document.getElementById("shipmentSort");
   const datePeriodFilter = document.getElementById("datePeriodFilter");
@@ -63,8 +69,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const logoutButton = document.getElementById("logoutButton");
   const currentUserName = document.getElementById("currentUserName");
   const appError = document.getElementById("appError");
+  const themeToggleButton = document.getElementById("themeToggleButton");
   const excelHeaders = [
-    "Firma przewozowa", "Numer listu", "Data przyjęcia", "Adresat", "Nadawca",
+    "Numer ID", "Nazwa Spółki", "Firma przewozowa", "Numer listu", "Data przyjęcia", "Adresat", "Nadawca",
     "Rodzaj przesyłki", "Ilość przesyłek", "Zawartość", "Numer zamówienia", "Numer projektu", "Status",
     "Imię i nazwisko odbiorcy", "Notatki"
   ];
@@ -73,6 +80,39 @@ document.addEventListener("DOMContentLoaded", function () {
   let editVersion = null;
   let currentNotesId = null;
   let scrollAnimationFrame = null;
+  const companySelect = document.getElementById("nazwaSpolkiSelect");
+  const otherCompanyContainer = document.getElementById("otherCompanyContainer");
+  const otherCompanyInput = document.getElementById("otherCompanyInput");
+
+  function updateThemeToggle() {
+    const isLightTheme = document.body.dataset.theme === "light";
+    themeToggleButton.textContent = isLightTheme ? "Tryb ciemny" : "Tryb jasny";
+    themeToggleButton.setAttribute("aria-pressed", String(isLightTheme));
+    themeToggleButton.setAttribute(
+      "aria-label",
+      isLightTheme ? "Przełącz na tryb ciemny" : "Przełącz na tryb jasny"
+    );
+  }
+
+  updateThemeToggle();
+  themeToggleButton.addEventListener("click", () => {
+    const nextTheme = document.body.dataset.theme === "light" ? "dark" : "light";
+    document.body.dataset.theme = nextTheme;
+    localStorage.setItem(themeStorageKey, nextTheme);
+    updateThemeToggle();
+  });
+
+  function updateOtherCompanyInput() {
+    const isOtherCompany = companySelect.value === "inna";
+    otherCompanyContainer.hidden = !isOtherCompany;
+    otherCompanyInput.required = isOtherCompany;
+    if (!isOtherCompany) otherCompanyInput.value = "";
+  }
+
+  companySelect.addEventListener("change", updateOtherCompanyInput);
+  companySelect.addEventListener("change", () => {
+    companySelect.required = true;
+  });
 
   addZawartoscButton.addEventListener("click", () => addZawartoscField());
 
@@ -347,6 +387,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   exportExcelButton.addEventListener("click", function () {
     const rows = shipments.map(shipment => [
+      shipment.numerId,
+      shipment.nazwaSpolki,
       shipment.firma,
       shipment.numerListu,
       shipment.data,
@@ -374,6 +416,8 @@ document.addEventListener("DOMContentLoaded", function () {
       .map(id => shipments.find(shipment => String(shipment.id) === id))
       .filter(Boolean)
       .map(shipment => [
+        shipment.numerId,
+        shipment.nazwaSpolki,
         shipment.firma,
         shipment.numerListu,
         shipment.data,
@@ -419,7 +463,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const importedRows = XLSX.utils.sheet_to_json(firstSheet, { defval: "", raw: false });
       if (!importedRows.length) throw new Error("Arkusz nie zawiera przesyłek.");
-      const requiredHeaders = excelHeaders.filter(header => header !== "Ilość przesyłek" && header !== "Adresat" && header !== "Numer projektu" && header !== "Data przyjęcia" && header !== "Imię i nazwisko odbiorcy" && header !== "Notatki");
+      const requiredHeaders = excelHeaders.filter(header => header !== "Numer ID" && header !== "Nazwa Spółki" && header !== "Ilość przesyłek" && header !== "Adresat" && header !== "Numer projektu" && header !== "Data przyjęcia" && header !== "Imię i nazwisko odbiorcy" && header !== "Notatki");
       const hasRecipientHeader = Object.hasOwn(importedRows[0], "Adresat") || Object.hasOwn(importedRows[0], "Odbiorca");
       const hasReceiptDateHeader = Object.hasOwn(importedRows[0], "Data przyjęcia") || Object.hasOwn(importedRows[0], "Data odbioru");
       if (!requiredHeaders.every(header => Object.hasOwn(importedRows[0], header)) || !hasRecipientHeader || !hasReceiptDateHeader) {
@@ -434,6 +478,8 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         const shipment = {
+          numerId: String(row["Numer ID"] ?? "").trim(),
+          nazwaSpolki: String(row["Nazwa Spółki"] ?? "").trim(),
           firma: String(row["Firma przewozowa"]).trim(),
           numerListu: String(row["Numer listu"]).trim(),
           data: String(row["Data przyjęcia"] ?? row["Data odbioru"]).trim(),
@@ -467,7 +513,6 @@ document.addEventListener("DOMContentLoaded", function () {
       addZawartoscField();
       document.getElementById("submitButton").textContent = "Dodaj przesyłkę";
       renderShipments();
-      searchInput.dispatchEvent(new Event("input"));
       alert(`Zaimportowano ${importedShipments.length} przesyłek i zastąpiono bieżącą listę.`);
     } catch (error) {
       alert(`Nie udało się zaimportować pliku: ${error.message}`);
@@ -500,6 +545,23 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderShipments() {
     tableBody.innerHTML = "";
+    const selectedCompany = companySearchFilter.value;
+    const companies = Array.from(new Set(
+      shipments.map(shipment => shipment.nazwaSpolki?.trim()).filter(Boolean)
+    )).sort((a, b) => a.localeCompare(b, "pl", { sensitivity: "base" }));
+    companySearchFilter.innerHTML = "";
+    const allCompaniesOption = document.createElement("option");
+    allCompaniesOption.value = "";
+    allCompaniesOption.textContent = "Wszystkie spółki";
+    companySearchFilter.appendChild(allCompaniesOption);
+    companies.forEach(company => {
+      const option = document.createElement("option");
+      option.value = company;
+      option.textContent = company;
+      companySearchFilter.appendChild(option);
+    });
+    companySearchFilter.value = companies.includes(selectedCompany) ? selectedCompany : "";
+
     const fragment = document.createDocumentFragment();
     const orderedShipments = shipments.map((shipment, index) => ({ shipment, index }));
     if (shipmentSort.value !== "default") {
@@ -518,25 +580,32 @@ document.addEventListener("DOMContentLoaded", function () {
       tr.dataset.shipmentDate = shipment.data || "";
 
       const numberCell = document.createElement("td");
-      numberCell.className = getShipmentNumberClass(shipment);
+      numberCell.dataset.columnKey = "lp";
+      numberCell.className = shipmentNumberColorsToggle.checked ? getShipmentNumberClass(shipment) : "";
       numberCell.textContent = String(index + 1);
       tr.appendChild(numberCell);
 
+      const registerNumberCell = document.createElement("td");
+      registerNumberCell.dataset.columnKey = "numerId";
+      registerNumberCell.textContent = shipment.numerId ?? "";
+      tr.appendChild(registerNumberCell);
+
       [
-        shipment.firma,
-        shipment.numerListu,
-        shipment.data,
-        shipment.odbiorca,
-        shipment.nadawca,
-        formatShipmentTypeAndQuantity(shipment)
-      ]
-        .forEach(value => {
-          const cell = document.createElement("td");
-          cell.textContent = value ?? "";
-          tr.appendChild(cell);
-        });
+        ["firma", shipment.firma],
+        ["numerListu", shipment.numerListu],
+        ["data", shipment.data],
+        ["odbiorca", shipment.odbiorca],
+        ["nadawca", shipment.nadawca],
+        ["rodzaj", formatShipmentTypeAndQuantity(shipment)]
+      ].forEach(([columnKey, value]) => {
+        const cell = document.createElement("td");
+        cell.dataset.columnKey = columnKey;
+        cell.textContent = value ?? "";
+        tr.appendChild(cell);
+      });
 
       const contentsCell = document.createElement("td");
+      contentsCell.dataset.columnKey = "zawartosc";
       const contentsList = document.createElement("ul");
       (Array.isArray(shipment.zawartosc) ? shipment.zawartosc : []).forEach(item => {
         const listItem = document.createElement("li");
@@ -547,14 +616,22 @@ document.addEventListener("DOMContentLoaded", function () {
       tr.appendChild(contentsCell);
 
       const orderCell = document.createElement("td");
+      orderCell.dataset.columnKey = "zamowienie";
       orderCell.textContent = shipment.zamowienie ?? "";
       tr.appendChild(orderCell);
 
       const projectCell = document.createElement("td");
+      projectCell.dataset.columnKey = "projekt";
       projectCell.textContent = shipment.projekt ?? "";
       tr.appendChild(projectCell);
 
+      const companyCell = document.createElement("td");
+      companyCell.dataset.columnKey = "nazwaSpolki";
+      companyCell.textContent = shipment.nazwaSpolki ?? "";
+      tr.appendChild(companyCell);
+
       const actionsCell = document.createElement("td");
+      actionsCell.dataset.columnKey = "akcje";
       const actionButtons = document.createElement("div");
       actionButtons.className = "action-buttons";
       const actions = [
@@ -583,6 +660,7 @@ document.addEventListener("DOMContentLoaded", function () {
       tr.appendChild(actionsCell);
 
       const statusCell = document.createElement("td");
+      statusCell.dataset.columnKey = "status";
       const statusSelect = document.createElement("select");
       [
         { value: "na magazynie", label: "Na magazynie" },
@@ -601,9 +679,19 @@ document.addEventListener("DOMContentLoaded", function () {
       fragment.appendChild(tr);
     });
     tableBody.appendChild(fragment);
+    applyTableViewSettings();
     applyShipmentFilters();
   }
   renderShipmentList = renderShipments;
+
+  function applyTableViewSettings() {
+    tableColumnToggles.forEach(toggle => {
+      document.querySelectorAll(`#shipmentsTable [data-column-key="${toggle.dataset.columnKey}"]`)
+        .forEach(cell => {
+          cell.hidden = !toggle.checked;
+        });
+    });
+  }
 
   function openNotesModalById(id) {
     const index = shipments.findIndex(shipment => String(shipment.id) === String(id));
@@ -611,29 +699,40 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function applyShipmentFilters() {
-    const query = searchInput.value.trim().toLowerCase();
-    const activeCols = Array.from(searchColumns)
-      .filter(checkbox => checkbox.checked)
-      .map(checkbox => checkbox.value);
     const columnIndexes = {
-      firma: 1,
-      numerListu: 2,
-      data: 3,
-      odbiorca: 4,
-      nadawca: 5,
-      rodzaj: 6,
-      zawartosc: 7,
-      zamowienie: 8,
-      projekt: 9
+      numerId: 1,
+      firma: 2,
+      numerListu: 3,
+      odbiorca: 5,
+      nadawca: 6,
+      zawartosc: 8,
+      zamowienie: 9,
+      projekt: 10,
+      nazwaSpolki: 11
     };
+    const activeSearchFilters = Array.from(searchFilters)
+      .map(input => ({
+        columnIndex: columnIndexes[input.dataset.column],
+        query: input.value.trim().toLowerCase(),
+        exact: input instanceof HTMLSelectElement
+      }))
+      .filter(filter => filter.query);
+    const globalQuery = globalSearchInput.value.trim().toLowerCase();
 
     Array.from(tableBody.rows).forEach(row => {
       const statusMatches = statusFilter.value === "all" || row.dataset.status === statusFilter.value;
       const dateMatches = matchesDatePeriod(row.dataset.shipmentDate);
-      const searchMatches = !query || activeCols.some(column => {
-        const cell = row.cells[columnIndexes[column]];
-        return cell && cell.textContent.toLowerCase().includes(query);
+      const globalSearchMatches = !globalQuery || Object.values(columnIndexes).some(columnIndex => {
+        const cell = row.cells[columnIndex];
+        return cell && cell.textContent.toLowerCase().includes(globalQuery);
       });
+      const specificSearchMatches = activeSearchFilters.every(filter => {
+        const cell = row.cells[filter.columnIndex];
+        if (!cell) return false;
+        const value = cell.textContent.trim().toLowerCase();
+        return filter.exact ? value === filter.query : value.includes(filter.query);
+      });
+      const searchMatches = globalSearchMatches && specificSearchMatches;
       row.style.display = statusMatches && dateMatches && searchMatches ? "" : "none";
     });
   }
@@ -668,13 +767,18 @@ document.addEventListener("DOMContentLoaded", function () {
       const updated = await window.shipmentApi.patch(id, { version: shipment.version, status: value });
       shipments = shipments.map(item => item.id === updated.id ? updated : item);
       renderShipments();
-      searchInput.dispatchEvent(new Event("input"));
     });
   };
 
   window.editEntry = function (id) {
     const s = shipments.find(item => String(item.id) === String(id));
     if (!s) return;
+    companySelect.required = Boolean(s.nazwaSpolki);
+    const knownCompany = Array.from(companySelect.options)
+      .some(option => option.value === s.nazwaSpolki && option.value !== "inna");
+    companySelect.value = knownCompany || !s.nazwaSpolki ? s.nazwaSpolki : "inna";
+    otherCompanyInput.value = knownCompany || !s.nazwaSpolki ? "" : s.nazwaSpolki;
+    updateOtherCompanyInput();
     document.getElementById("firma").value = s.firma;
     document.getElementById("numerListu").value = s.numerListu;
     document.getElementById("data").value = s.data;
@@ -720,6 +824,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     runServerAction(async () => {
       const newShipment = {
+        nazwaSpolki: companySelect.value === "inna"
+          ? otherCompanyInput.value.trim()
+          : companySelect.value,
         firma: document.getElementById("firma").value.trim(),
         numerListu: document.getElementById("numerListu").value.trim(),
         data: document.getElementById("data").value,
@@ -759,6 +866,8 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       form.reset();
+      companySelect.required = true;
+      updateOtherCompanyInput();
       document.getElementById("zawartoscFields").innerHTML = "";
       addZawartoscField();
       renderShipments();
@@ -766,7 +875,10 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   function resetShipmentFilters() {
-    searchInput.value = "";
+    globalSearchInput.value = "";
+    searchFilters.forEach(input => {
+      input.value = "";
+    });
     statusFilter.value = "all";
     shipmentSort.value = "default";
     datePeriodFilter.value = "all";
@@ -775,16 +887,18 @@ document.addEventListener("DOMContentLoaded", function () {
     shipmentMonth.value = "";
     dateRangeControls.hidden = true;
     monthControls.hidden = true;
-    searchColumns.forEach(checkbox => {
-      checkbox.checked = true;
-    });
     renderShipments();
     applyShipmentFilters();
   }
 
-  searchInput.addEventListener("input", applyShipmentFilters);
-  searchColumns.forEach(checkbox => checkbox.addEventListener("change", applyShipmentFilters));
+  globalSearchInput.addEventListener("input", applyShipmentFilters);
+  searchFilters.forEach(input => {
+    const eventName = input instanceof HTMLSelectElement ? "change" : "input";
+    input.addEventListener(eventName, applyShipmentFilters);
+  });
   statusFilter.addEventListener("change", applyShipmentFilters);
+  tableColumnToggles.forEach(toggle => toggle.addEventListener("change", applyTableViewSettings));
+  shipmentNumberColorsToggle.addEventListener("change", renderShipments);
   shipmentSort.addEventListener("change", renderShipments);
   resetFiltersButton.addEventListener("click", resetShipmentFilters);
   datePeriodFilter.addEventListener("change", function () {
@@ -912,6 +1026,7 @@ function printReceipt(id) {
     </table>
   `;
   const details = [
+    ["Numer ID", entry.numerId],
     ["Firma przewozowa", entry.firma],
     ["Numer listu przewozowego", entry.numerListu],
     ["Data przyjęcia", entry.data],

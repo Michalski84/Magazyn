@@ -2,7 +2,6 @@
   "name": "magazyn1",
   "version": "1.0.0",
   "description": "Wspólny rejestr przesyłek z backendem Node.js i PostgreSQL",
-  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "create-user": "node scripts/create-user.js",

@@ -45,6 +45,10 @@ Po weryfikacji serwera można uruchamiać go w tle przez `start-app.vbs`. Na pro
 
 Każdy użytkownik ma własne konto i sesję. Zmiany są zapisywane we wspólnej bazie, a lista odświeża się automatycznie co 30 sekund. Zmiany tego samego rekordu są chronione numerem wersji; jeśli inna osoba edytowała go wcześniej, aplikacja odrzuci nieaktualny zapis zamiast po cichu nadpisać cudze dane. Operacje przesyłki i jej pozycji oraz pełny import Excela są transakcyjne.
 
+Każda przesyłka otrzymuje stały Numer ID w formacie `001/2026`. Licznik rozpoczyna się osobno dla każdego roku daty przyjęcia, a numer nie zmienia się po późniejszej korekcie daty. Numer jest uwzględniany w eksporcie Excel i zachowywany przy ponownym imporcie; starsze arkusze bez tej kolumny otrzymują numery automatycznie.
+
+Przy wprowadzaniu przesyłki można wybrać nazwę spółki z listy. Opcja „inna” pozwala wpisać własną nazwę; jest ona zapisywana, wyświetlana w tabeli i uwzględniana w wyszukiwaniu oraz eksporcie.
+
 Domyślna konfiguracja jest przeznaczona wyłącznie dla zaufanej sieci lokalnej: HTTP nie szyfruje haseł ani sesji. Nie wystawiaj portu aplikacji do Internetu. Jeśli dostęp ma wychodzić poza zaufaną sieć, skonfiguruj HTTPS przez reverse proxy, ustaw `COOKIE_SECURE=true` oraz `TRUST_PROXY=1` i ogranicz dostęp zaporą.
 
 ## Kopie zapasowe

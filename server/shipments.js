@@ -1,5 +1,6 @@
 const { pool } = require("./database");
 const { normalizeShipment } = require("./validation");
+const { formatRegisterNumber, parseRegisterNumber } = require("./shipment-numbers");
 
 function invalid(message) {
   const error = new Error(message);
@@ -8,7 +9,9 @@ function invalid(message) {
 }
 
 const shipmentSelect = `
-  SELECT s.id, s.carrier AS firma, s.tracking_number AS "numerListu",
+  SELECT s.id, s.register_number AS "numerId",
+         s.company_name AS "nazwaSpolki",
+         s.carrier AS firma, s.tracking_number AS "numerListu",
          to_char(s.received_on, 'YYYY-MM-DD') AS data, s.recipient AS odbiorca,
          s.sender AS nadawca, s.shipment_type AS rodzaj,
          s.package_quantity AS "iloscPrzesylek",
@@ -46,15 +49,18 @@ async function getShipment(id, client = pool) {
   return result.rows[0] || null;
 }
 
-async function insertShipment(client, input) {
+async function insertShipment(client, input, importedRegisterNumber = null) {
   const shipment = normalizeShipment(input);
+  const registerNumber = importedRegisterNumber || await nextRegisterNumber(client, shipment.data);
   const result = await client.query(`
     INSERT INTO shipments
-      (carrier, tracking_number, received_on, recipient, sender, shipment_type, package_quantity,
+      (register_number, company_name, carrier, tracking_number, received_on, recipient, sender, shipment_type, package_quantity,
        order_number, project_number, status, recipient_signature, notes)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
     RETURNING id
   `, [
+    registerNumber,
+    shipment.nazwaSpolki,
     shipment.firma, shipment.numerListu, shipment.data, shipment.odbiorca,
     shipment.nadawca, shipment.rodzaj, shipment.iloscPrzesylek,
     shipment.zamowienie, shipment.projekt,
@@ -76,6 +82,29 @@ async function insertShipment(client, input) {
   }
 
   return getShipment(shipmentId, client);
+}
+
+async function nextRegisterNumber(client, receivedOn) {
+  const year = Number(receivedOn.slice(0, 4));
+  const result = await client.query(`
+    INSERT INTO shipment_number_counters (year, last_number)
+    VALUES ($1, 1)
+    ON CONFLICT (year) DO UPDATE
+      SET last_number = shipment_number_counters.last_number + 1
+    RETURNING last_number::TEXT AS sequence
+  `, [year]);
+  return formatRegisterNumber(result.rows[0].sequence, year);
+}
+
+async function preserveImportedRegisterNumber(client, value) {
+  const parsed = parseRegisterNumber(value);
+  await client.query(`
+    INSERT INTO shipment_number_counters (year, last_number)
+    VALUES ($1, $2)
+    ON CONFLICT (year) DO UPDATE
+      SET last_number = GREATEST(shipment_number_counters.last_number, EXCLUDED.last_number)
+  `, [parsed.year, parsed.sequence]);
+  return parsed.value;
 }
 
 async function createShipment(input) {
@@ -100,14 +129,15 @@ async function replaceShipment(id, input) {
     await client.query("BEGIN");
     const result = await client.query(`
       UPDATE shipments
-         SET carrier = $1, tracking_number = $2, received_on = $3,
-             recipient = $4, sender = $5, shipment_type = $6,
-             package_quantity = $7, order_number = $8, project_number = $9, status = $10,
-             recipient_signature = $11, notes = $12,
+         SET company_name = $1, carrier = $2, tracking_number = $3, received_on = $4,
+             recipient = $5, sender = $6, shipment_type = $7,
+             package_quantity = $8, order_number = $9, project_number = $10, status = $11,
+             recipient_signature = $12, notes = $13,
              version = version + 1, updated_at = NOW()
-       WHERE id = $13 AND version = $14
+       WHERE id = $14 AND version = $15
        RETURNING id
     `, [
+      shipment.nazwaSpolki,
       shipment.firma, shipment.numerListu, shipment.data, shipment.odbiorca,
       shipment.nadawca, shipment.rodzaj, shipment.iloscPrzesylek,
       shipment.zamowienie, shipment.projekt,
@@ -203,7 +233,26 @@ async function importShipments(inputs, { replace = true } = {}) {
   if (!Array.isArray(inputs) || inputs.length > 5000) {
     invalid("Import może zawierać maksymalnie 5000 przesyłek.");
   }
-  const shipments = inputs.map(normalizeShipment);
+  const registerNumbers = new Set();
+  const shipments = inputs.map(input => {
+    const shipment = normalizeShipment(input);
+    const rawRegisterNumber = input.numerId;
+    if (rawRegisterNumber == null ||
+        (typeof rawRegisterNumber === "string" && rawRegisterNumber.trim() === "")) {
+      return shipment;
+    }
+    let parsed;
+    try {
+      parsed = parseRegisterNumber(rawRegisterNumber);
+    } catch (error) {
+      invalid(error.message);
+    }
+    if (registerNumbers.has(parsed.value)) {
+      invalid(`Numer ID ${parsed.value} występuje więcej niż raz w imporcie.`);
+    }
+    registerNumbers.add(parsed.value);
+    return { ...shipment, numerId: parsed.value };
+  });
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -218,7 +267,14 @@ async function importShipments(inputs, { replace = true } = {}) {
         throw error;
       }
     }
-    for (const shipment of shipments) await insertShipment(client, shipment);
+    for (const shipment of shipments) {
+      if (shipment.numerId) {
+        shipment.numerId = await preserveImportedRegisterNumber(client, shipment.numerId);
+      }
+    }
+    for (const shipment of shipments) {
+      await insertShipment(client, shipment, shipment.numerId);
+    }
     await client.query("COMMIT");
     return getShipments();
   } catch (error) {

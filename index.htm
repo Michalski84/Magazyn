@@ -23,6 +23,7 @@
   <div id="appContent" hidden>
   <p id="appError" class="app-error" role="alert" hidden></p>
   <header class="app-header">
+    <button type="button" id="themeToggleButton" aria-pressed="false">Tryb jasny</button>
     <h1>Rejestr przesyłek przychodzących</h1>
     <div class="header-actions">
       <span>Zalogowany: <strong id="currentUserName"></strong></span>
@@ -53,6 +54,25 @@
     </div>
     <label>Numer zamówienia: <input type="text" id="zamowienie"></label>
     <label>Numer projektu: <input type="text" id="projekt"></label>
+    <label for="nazwaSpolkiSelect">Nazwa Spółki:
+      <select id="nazwaSpolkiSelect" required>
+        <option value="">Wybierz spółkę</option>
+        <option value="Maxto Technology">Maxto Technology</option>
+        <option value="Maxto ITS">Maxto ITS</option>
+        <option value="Maxto Consulting">Maxto Consulting</option>
+        <option value="Nexcore">Nexcore</option>
+        <option value="ecvision">ecvision</option>
+        <option value="Revotec">Revotec</option>
+        <option value="Trocom">Trocom</option>
+        <option value="SES Energy">SES Energy</option>
+        <option value="Quantica Lab">Quantica Lab</option>
+        <option value="Bear Lake">Bear Lake</option>
+        <option value="inna">inna</option>
+      </select>
+    </label>
+    <label id="otherCompanyContainer" for="otherCompanyInput" hidden>Wpisz nazwę spółki:
+      <input type="text" id="otherCompanyInput" maxlength="500">
+    </label>
 
  <div id="zawartoscContainer">
   <label>Zawartość:</label>
@@ -79,9 +99,10 @@
   <section class="search-section">
   <h2>Wyszukiwanie</h2>
   <div class="search-toolbar">
-    <input type="text" id="searchInput" placeholder="Wpisz szukaną frazę..." />
+    <input type="search" id="globalSearchInput" placeholder="Szukaj we wszystkich danych poza datą i rodzajem..." aria-label="Szukaj we wszystkich danych poza datą przyjęcia i rodzajem przesyłki">
     <button type="button" id="resetFiltersButton">Resetuj filtry</button>
   </div>
+  <p class="search-hint">Data przyjęcia i rodzaj przesyłki nie są uwzględniane w wyszukiwaniu. Dodatkowe pola zawężają wyniki; wszystkie podane kryteria muszą pasować.</p>
 
   <div class="shipment-filters">
     <label for="statusFilter">Status:
@@ -123,16 +144,36 @@
     </div>
   </div>
 
-  <div class="search-columns">
-    <label><input type="checkbox" class="search-col" value="firma" checked> Firma przewozowa</label>
-    <label><input type="checkbox" class="search-col" value="numerListu" checked> Numer listu</label>
-    <label><input type="checkbox" class="search-col" value="data" checked> Data przyjęcia</label>
-    <label><input type="checkbox" class="search-col" value="odbiorca" checked> Adresat</label>
-    <label><input type="checkbox" class="search-col" value="nadawca" checked> Nadawca</label>
-    <label><input type="checkbox" class="search-col" value="rodzaj" checked> Rodzaj przesyłki</label>
-    <label><input type="checkbox" class="search-col" value="zawartosc" checked> Zawartość</label>
-    <label><input type="checkbox" class="search-col" value="zamowienie" checked> Numer zamówienia</label>
-    <label><input type="checkbox" class="search-col" value="projekt" checked> Numer projektu</label>
+  <div class="search-fields">
+    <label>Numer ID
+      <input type="search" class="search-filter" data-column="numerId" placeholder="Szukaj Numeru ID">
+    </label>
+    <label>Nazwa Spółki
+      <select id="companySearchFilter" class="search-filter" data-column="nazwaSpolki">
+        <option value="">Wszystkie spółki</option>
+      </select>
+    </label>
+    <label>Firma przewozowa
+      <input type="search" class="search-filter" data-column="firma" placeholder="Szukaj firmy">
+    </label>
+    <label>Numer listu
+      <input type="search" class="search-filter" data-column="numerListu" placeholder="Szukaj numeru listu">
+    </label>
+    <label>Adresat
+      <input type="search" class="search-filter" data-column="odbiorca" placeholder="Szukaj adresata">
+    </label>
+    <label>Nadawca
+      <input type="search" class="search-filter" data-column="nadawca" placeholder="Szukaj nadawcy">
+    </label>
+    <label>Zawartość
+      <input type="search" class="search-filter" data-column="zawartosc" placeholder="Szukaj zawartości">
+    </label>
+    <label>Numer zamówienia
+      <input type="search" class="search-filter" data-column="zamowienie" placeholder="Szukaj numeru zamówienia">
+    </label>
+    <label>Numer projektu
+      <input type="search" class="search-filter" data-column="projekt" placeholder="Szukaj numeru projektu">
+    </label>
   </div>
   <div class="spreadsheet-controls">
     <button type="button" id="exportExcelButton">Eksportuj do Excel</button>
@@ -145,21 +186,50 @@
 
   <hr>
 
+<section class="table-view-toolbar" aria-label="Ustawienia widoku tabeli">
+  <strong>Widok tabeli:</strong>
+  <div class="table-column-toggles">
+    <label><input type="checkbox" class="table-column-toggle" data-column-key="lp" checked> LP</label>
+    <label><input type="checkbox" class="table-column-toggle" data-column-key="numerId" checked> Numer ID</label>
+    <label><input type="checkbox" class="table-column-toggle" data-column-key="firma" checked> Firma</label>
+    <label><input type="checkbox" class="table-column-toggle" data-column-key="numerListu" checked> Numer listu</label>
+    <label><input type="checkbox" class="table-column-toggle" data-column-key="data" checked> Data przyjęcia</label>
+    <label><input type="checkbox" class="table-column-toggle" data-column-key="odbiorca" checked> Adresat</label>
+    <label><input type="checkbox" class="table-column-toggle" data-column-key="nadawca" checked> Nadawca</label>
+    <label><input type="checkbox" class="table-column-toggle" data-column-key="rodzaj" checked> Rodzaj / ilość</label>
+    <label><input type="checkbox" class="table-column-toggle" data-column-key="zawartosc" checked> Zawartość</label>
+    <label><input type="checkbox" class="table-column-toggle" data-column-key="zamowienie" checked> Zamówienie</label>
+    <label><input type="checkbox" class="table-column-toggle" data-column-key="projekt" checked> Numer projektu</label>
+    <label><input type="checkbox" class="table-column-toggle" data-column-key="nazwaSpolki" checked> Nazwa Spółki</label>
+    <label><input type="checkbox" class="table-column-toggle" data-column-key="akcje" checked> Akcje</label>
+    <label><input type="checkbox" class="table-column-toggle" data-column-key="status" checked> Potwierdzenie odbioru</label>
+  </div>
+  <div class="table-color-settings">
+    <label>
+      <input type="checkbox" id="shipmentNumberColorsToggle" checked>
+      Kolory w kolumnie LP
+    </label>
+    <small>Zielony: odebrane · pomarańczowy: 7–14 dni · czerwony: ponad 14 dni na magazynie</small>
+  </div>
+</section>
+
 <table id="shipmentsTable">
   <thead>
     <tr>
-      <th>LP</th>
-      <th>Firma</th>
-      <th>Numer listu</th>
-      <th>Data przyjęcia</th>
-      <th>Adresat</th>
-      <th>Nadawca</th>
-      <th>Rodzaj / ilość</th>
-      <th>Zawartość</th>
-      <th>Zamówienie</th>
-      <th>Numer projektu</th>
-      <th>Akcje</th> 
-      <th>Potwierdzenie odbioru</th>
+      <th data-column-key="lp">LP</th>
+      <th data-column-key="numerId">Numer ID</th>
+      <th data-column-key="firma">Firma</th>
+      <th data-column-key="numerListu">Numer listu</th>
+      <th data-column-key="data">Data przyjęcia</th>
+      <th data-column-key="odbiorca">Adresat</th>
+      <th data-column-key="nadawca">Nadawca</th>
+      <th data-column-key="rodzaj">Rodzaj / ilość</th>
+      <th data-column-key="zawartosc">Zawartość</th>
+      <th data-column-key="zamowienie">Zamówienie</th>
+      <th data-column-key="projekt">Numer projektu</th>
+      <th data-column-key="nazwaSpolki">Nazwa Spółki</th>
+      <th data-column-key="akcje">Akcje</th>
+      <th data-column-key="status">Potwierdzenie odbioru</th>
     </tr>
   </thead>
   <tbody></tbody>
@@ -195,6 +265,9 @@
     </div>
   </section>
 </div>
+  <footer class="app-footer">
+    <small>© 2026 Ami-Bricks Andrzej Michalski. Wszelkie prawa zastrzeżone</small>
+  </footer>
   </div>
 
 <div id="toastNotification" class="toast-notification" role="status" aria-live="polite" hidden></div>

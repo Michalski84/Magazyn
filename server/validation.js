@@ -27,6 +27,7 @@ function normalizeShipment(input) {
   };
 
   const shipment = {
+    nazwaSpolki: text(input.nazwaSpolki, "nazwaSpolki"),
     firma: text(input.firma, "firma"),
     numerListu: text(input.numerListu, "numerListu"),
     data: text(input.data, "data"),
