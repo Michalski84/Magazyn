@@ -1,0 +1,2 @@
+ALTER TABLE warehouse_stock_entries
+  ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;

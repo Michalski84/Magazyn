@@ -49,6 +49,22 @@ Każda przesyłka otrzymuje stały Numer ID w formacie `001/2026`. Licznik rozpo
 
 Przy wprowadzaniu przesyłki można wybrać nazwę spółki z listy. Opcja „inna” pozwala wpisać własną nazwę; jest ona zapisywana, wyświetlana w tabeli i uwzględniana w wyszukiwaniu oraz eksporcie.
 
+## Moduł Magazyn
+
+Zakładka **Magazyn** prowadzi kartotekę towarów i historię ruchów. Magazyn główny jest nieusuwalny; można tworzyć dodatkowe magazyny przypisane do spółki, zmieniać ich nazwy i usuwać je. Przy usuwaniu dodatkowego magazynu jego pozostały stan jest przenoszony do magazynu głównego, a historia zostaje zachowana.
+
+W formularzu przesyłki pole **Magazyn docelowy** ma dwie opcje: „Przyjmij na magazyn główny” i „Nie przyjmuj na magazyn”. Każda pozycja przesyłki tworzy osobną, niezależną partię magazynową (numer zamówienia, projektu i dostawca); zmiana lub usunięcie przesyłki nie zmienia stanu magazynu. Spółka z przesyłki jest zakładana w kartotece, jeśli jeszcze nie istnieje. Starsze przesyłki, w tym importowane, nie zmieniają stanu wstecz — dla takiej przesyłki dostępna jest akcja **Przyjmij do magazynu**. Towar dodany ręcznie zaczyna od stanu zerowego; stan początkowy wprowadza się korektą z podaniem przyczyny.
+
+WZ zatwierdza wydanie natychmiast i atomowo sprawdza dostępny stan wybranej partii; jeden dokument może obejmować towar tylko jednej spółki. Dokument ma numer `WZ/RRRR/NNNN`, można go wydrukować lub anulować (anulowanie zapisuje ruch zwrotny). Korekty stanu wymagają podania przyczyny i nie mogą obniżyć stanu poniżej zera. Tabela magazynu pokazuje partie osobno wraz z magazynem, LP, dostawcą (nadawcą przesyłki), numerami zamówienia i projektu, przyjęciami, wydaniami i stanem; stany można wyeksportować do Excela.
+
+Ruchy są historią źródłową, a stan wylicza się z ich sumy. Przyjęcia z przesyłek są przechowywane w magazynie jako niezależne partie; numer przesyłki, dostawca i pozycje nie są połączone kluczami z rejestrem przesyłek. Import zastępujący rejestr jest blokowany, gdy istnieją ruchy magazynowe. Migracja `010_single_main_warehouse.sql` scalała wcześniejsze magazyny z głównym; migracja `011_managed_warehouses_and_detached_shipments.sql` dodaje zarządzanie magazynami i usuwa powiązania partii z pozycjami przesyłek.
+
+Pliki magazynu są rozdzielone na `server/warehouse.js` (logika operacji i transakcji), `src/warehouse.js` (interfejs zakładki), endpointy API w `server.js` i `src/api.js`, a migracje pozostają w `migrations/`. Logi serwera mają wspólny format czasu, poziomu i kontekstu przez `server/logger.js`; błędy żądań zawierają status, komunikat, a dla błędów serwera także stos. Są wypisywane na konsolę i zapisywane w dziennych plikach `logs/app-RRRR-MM-DD.log`; przy uruchomieniu usuwane są pliki aplikacji starsze niż 30 dni, a pliki logów są wykluczone z repozytorium.
+
+## Kartoteki
+
+Zakładki **Spółki**, **Odbiorcy** i **Lista projektów** pozwalają dodawać oraz edytować dane. Adresy spółek są wykorzystywane jako dane sprzedawcy WZ, a adresy i dane kontaktowe odbiorców jako dane odbiorcy. Dokument WZ zapisuje kopię tych danych, dzięki czemu późniejsze zmiany kartoteki nie zmieniają wydrukowanych wcześniej dokumentów. Numer projektu na liście pokazuje nazwę skróconą po najechaniu kursorem.
+
 Domyślna konfiguracja jest przeznaczona wyłącznie dla zaufanej sieci lokalnej: HTTP nie szyfruje haseł ani sesji. Nie wystawiaj portu aplikacji do Internetu. Jeśli dostęp ma wychodzić poza zaufaną sieć, skonfiguruj HTTPS przez reverse proxy, ustaw `COOKIE_SECURE=true` oraz `TRUST_PROXY=1` i ogranicz dostęp zaporą.
 
 ## Kopie zapasowe

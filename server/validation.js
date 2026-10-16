@@ -40,6 +40,9 @@ function normalizeShipment(input) {
     status: text(input.status || "na magazynie", "status"),
     odbiorcaPodpis: text(input.odbiorcaPodpis, "odbiorcaPodpis"),
     notatki: text(input.notatki, "notatki"),
+    warehouseId: input.warehouseId == null || input.warehouseId === ""
+      ? null
+      : text(input.warehouseId, "warehouseId"),
     zawartosc: input.zawartosc
   };
 
@@ -58,6 +61,9 @@ function normalizeShipment(input) {
     invalid("Data przyjęcia musi być poprawną datą w formacie RRRR-MM-DD.");
   }
   if (!ALLOWED_STATUSES.has(shipment.status)) invalid("Nieprawidłowy status przesyłki.");
+  if (shipment.warehouseId !== null && !["main", "none"].includes(shipment.warehouseId)) {
+    invalid("Nieprawidłowa opcja magazynu docelowego.");
+  }
   if (!Array.isArray(shipment.zawartosc) || shipment.zawartosc.length > 500) {
     invalid("Zawartość przesyłki musi zawierać maksymalnie 500 pozycji.");
   }

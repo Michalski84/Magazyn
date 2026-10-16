@@ -65,6 +65,251 @@ h1 {
   background: #b45309;
 }
 
+.module-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 1800px;
+  margin: 0 auto 18px;
+  border-bottom: 1px solid #444;
+}
+
+.module-tab {
+  margin: 0 0 -1px !important;
+  border: 1px solid #444 !important;
+  border-bottom: 0 !important;
+  border-radius: 8px 8px 0 0 !important;
+  background: #29293a !important;
+}
+
+.module-tab.is-active {
+  background: #397a4c !important;
+  border-color: #397a4c !important;
+}
+
+.module-tab[data-module="companiesModule"] {
+  margin-left: auto !important;
+}
+
+.app-module {
+  max-width: 1800px;
+  margin: 0 auto;
+}
+
+.app-module > .entry-workspace {
+  max-width: none;
+}
+
+.warehouse-heading,
+.warehouse-toolbar,
+.warehouse-actions,
+.warehouse-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.warehouse-heading {
+  justify-content: space-between;
+  margin: 0 auto 16px;
+  padding: 12px 16px;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background: #242433;
+}
+
+.warehouse-heading h2,
+.warehouse-heading p {
+  margin: 0;
+}
+
+.catalog-add-button {
+  width: auto;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.warehouse-heading p,
+.warehouse-warning {
+  color: #ccc;
+}
+
+.warehouse-actions button,
+.warehouse-toolbar button {
+  margin: 0;
+  width: auto;
+}
+
+.warehouse-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 14px;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  margin: 0 auto 18px;
+  border: 1px solid #397a4c;
+}
+
+.warehouse-form h3,
+.warehouse-form > p,
+.warehouse-form > button,
+.warehouse-form-actions,
+.warehouse-line-list,
+.warehouse-form-grid {
+  grid-column: 1 / -1;
+}
+
+.warehouse-form h3 {
+  margin: 0;
+}
+
+.warehouse-form label {
+  margin: 0;
+}
+
+.warehouse-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 72px;
+  margin-top: 4px;
+  padding: 7px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #3a3a4f;
+  color: #f1f1f1;
+  font: inherit;
+}
+
+.warehouse-form-actions button,
+.warehouse-form > button {
+  width: auto;
+  margin-top: 0;
+}
+
+.warehouse-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px 14px;
+}
+
+.warehouse-toolbar {
+  margin: 18px 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #242433;
+}
+
+.warehouse-toolbar label {
+  display: grid;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.warehouse-toolbar input,
+.warehouse-toolbar select,
+.warehouse-form select,
+.warehouse-form input {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.warehouse-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.warehouse-table-wrap table {
+  min-width: 900px;
+  margin-bottom: 18px;
+}
+
+.catalog-module .warehouse-table-wrap table {
+  min-width: 760px;
+}
+
+.catalog-form {
+  margin-top: 0;
+}
+
+.issue-party-details {
+  margin: 0;
+  color: #ccc;
+  grid-column: 1 / -1;
+  white-space: pre-line;
+}
+
+.column-filter-toggle {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: bold;
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+
+.column-filter-toggle.is-filtered::after {
+  content: " 🔍";
+}
+
+.column-filter-input {
+  display: block;
+  width: 100%;
+  min-width: 110px;
+  margin-top: 4px;
+  box-sizing: border-box;
+}
+
+.warehouse-details {
+  margin: 18px 0;
+}
+
+.warehouse-details > summary {
+  padding: 12px;
+  border-radius: 6px;
+  background: #343449;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.issue-line,
+.transfer-line {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 150px auto;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.issue-line input,
+.issue-line select,
+.transfer-line input,
+.transfer-line select {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 7px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #3a3a4f;
+  color: #f1f1f1;
+}
+
+.issue-line button,
+.transfer-line button {
+  margin: 0;
+}
+
+.issue-line--serial {
+  grid-template-columns: minmax(220px, 1fr) 110px minmax(140px, 220px) auto;
+}
+
+.low-stock-row {
+  background: rgba(190, 112, 22, 0.24);
+}
+
 [hidden] {
   display: none !important;
 }
@@ -319,6 +564,14 @@ hr {
   margin-top: 0.5rem;
 }
 
+#stockTable [hidden] {
+  display: none !important;
+}
+
+#warehouseModule .table-view-toolbar {
+  margin: 0 0 12px;
+}
+
 .table-view-toolbar label {
   display: inline-flex;
   align-items: center;
@@ -533,6 +786,74 @@ body[data-theme="light"] {
   color-scheme: light;
 }
 
+body[data-theme="light"] .module-tab {
+  color: #202020;
+  background: #e8e8ef !important;
+}
+
+body[data-theme="light"] .module-tab.is-active {
+  color: #fff;
+}
+
+body[data-theme="light"] .warehouse-heading,
+body[data-theme="light"] .warehouse-toolbar {
+  background: #f2f2f6;
+  border-color: #ccc;
+  color: #222;
+}
+
+body[data-theme="light"] .warehouse-heading p,
+body[data-theme="light"] .warehouse-warning {
+  color: #555;
+}
+
+body[data-theme="light"] .issue-party-details {
+  color: #555;
+}
+
+body[data-theme="light"] .warehouse-form textarea,
+body[data-theme="light"] .issue-line input,
+body[data-theme="light"] .issue-line select,
+body[data-theme="light"] .transfer-line input,
+body[data-theme="light"] .transfer-line select {
+  background: #fff;
+  color: #222;
+  border-color: #bbb;
+}
+
+body[data-theme="light"] .warehouse-details > summary {
+  background: #e8e8ef;
+  color: #222;
+}
+
+@media (max-width: 700px) {
+  .warehouse-heading {
+    align-items: flex-start;
+  }
+
+  .warehouse-actions {
+    width: 100%;
+  }
+
+  .warehouse-actions button {
+    flex: 1 1 140px;
+  }
+
+  .issue-line,
+  .transfer-line {
+    grid-template-columns: 1fr 100px;
+  }
+
+  .issue-line--serial {
+    grid-template-columns: 1fr 100px;
+  }
+
+  .issue-line button,
+  .transfer-line button {
+    grid-column: 1 / -1;
+  }
+}
+
 body[data-theme="light"] h1,
 body[data-theme="light"] .app-header h1,
 body[data-theme="light"] .search-section h2,
@@ -654,6 +975,31 @@ body[data-theme="light"] hr {
 
 body[data-theme="light"] td button {
   color: #30323a;
+}
+
+body[data-theme="light"] #warehouseModule button,
+body[data-theme="light"] #warehouseModule td button,
+body[data-theme="light"] .catalog-module button,
+body[data-theme="light"] .catalog-module td button {
+  color: #fff;
+}
+
+#stockTable td[data-column-key="quantityOut"] {
+  white-space: nowrap;
+}
+
+#stockTable .issue-link-button {
+  margin: 0;
+  padding: 0 4px;
+  background: none;
+  border: none;
+  color: #6db3f2;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+body[data-theme="light"] #warehouseModule #stockTable .issue-link-button {
+  color: #1f5f8a;
 }
 
 @media (min-width: 769px) {
@@ -1091,3 +1437,6 @@ body[data-theme="light"] td button {
     padding: 18px;
   }
 }
+
+.row-actions { white-space: nowrap; width: 1%; }
+.row-action-button { padding: 2px 6px; margin: 0 1px; min-width: 0; font-size: 14px; line-height: 1.2; }

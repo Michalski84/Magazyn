@@ -34,6 +34,18 @@ test("defaults the company name for legacy shipments and trims custom names", ()
   assert.equal(normalizeShipment({ ...validShipment, nazwaSpolki: "  Własna spółka  " }).nazwaSpolki, "Własna spółka");
 });
 
+test("normalizes optional warehouse choice and rejects unknown values", () => {
+  assert.equal(normalizeShipment(validShipment).warehouseId, null);
+  assert.equal(normalizeShipment({ ...validShipment, warehouseId: "main" }).warehouseId, "main");
+  assert.equal(normalizeShipment({ ...validShipment, warehouseId: "none" }).warehouseId, "none");
+  for (const warehouseId of ["0", "12", "abc"]) {
+    assert.throws(() => normalizeShipment({ ...validShipment, warehouseId }), {
+      status: 400,
+      message: "Nieprawidłowa opcja magazynu docelowego."
+    });
+  }
+});
+
 test("defaults shipment quantity for legacy records and rejects invalid quantities", () => {
   assert.equal(normalizeShipment({ ...validShipment, iloscPrzesylek: undefined }).iloscPrzesylek, 1);
   for (const iloscPrzesylek of [0, -1, 1.5, "abc", 2_147_483_648]) {

@@ -32,6 +32,15 @@
     </div>
   </header>
 
+  <nav class="module-tabs" aria-label="Moduły aplikacji">
+    <button type="button" class="module-tab is-active" data-module="shipmentsModule" aria-selected="true">Przesyłki</button>
+    <button type="button" class="module-tab" data-module="warehouseModule" aria-selected="false">Magazyn</button>
+    <button type="button" class="module-tab" data-module="companiesModule" aria-selected="false">Spółki</button>
+    <button type="button" class="module-tab" data-module="recipientsModule" aria-selected="false">Odbiorcy</button>
+    <button type="button" class="module-tab" data-module="projectsModule" aria-selected="false">Lista projektów</button>
+  </nav>
+
+  <section id="shipmentsModule" class="app-module">
   <div class="entry-workspace">
   <form id="shipmentForm">
     <label>Firma przewozowa: <input type="text" id="firma" required></label>
@@ -72,6 +81,12 @@
     </label>
     <label id="otherCompanyContainer" for="otherCompanyInput" hidden>Wpisz nazwę spółki:
       <input type="text" id="otherCompanyInput" maxlength="500">
+    </label>
+    <label for="shipmentWarehouseSelect">Magazyn docelowy:
+      <select id="shipmentWarehouseSelect">
+        <option value="main">Przyjmij na magazyn główny</option>
+        <option value="none">Nie przyjmuj na magazyn</option>
+      </select>
     </label>
 
  <div id="zawartoscContainer">
@@ -234,6 +249,354 @@
   </thead>
   <tbody></tbody>
 </table>
+  </section>
+
+  <section id="warehouseModule" class="app-module" hidden>
+    <div class="warehouse-heading">
+      <div>
+        <h2>Magazyn</h2>
+        <p>Stany wynikają z historii przyjęć, wydań, korekt i przesunięć.</p>
+      </div>
+      <div class="warehouse-actions">
+        <button type="button" id="showWarehouseFormButton">Utwórz magazyn</button>
+        <button type="button" id="showItemFormButton">Dodaj pozycję</button>
+        <button type="button" id="showIssueFormButton">Utwórz WZ</button>
+        <button type="button" id="showTransferFormButton">Przesunięcie MM</button>
+      </div>
+    </div>
+
+    <form id="warehouseCreateForm" class="warehouse-form" hidden>
+      <h3 id="warehouseFormTitle">Nowy magazyn</h3>
+      <input id="warehouseEditId" type="hidden">
+      <label for="newWarehouseCompany">Spółka
+        <select id="newWarehouseCompany" required></select>
+      </label>
+      <label for="newWarehouseName">Nazwa magazynu
+        <input id="newWarehouseName" maxlength="500" required>
+      </label>
+      <div class="warehouse-form-actions">
+        <button type="submit" id="saveWarehouseButton">Utwórz magazyn</button>
+        <button type="button" data-close-warehouse-form>Anuluj</button>
+      </div>
+    </form>
+
+    <form id="shipmentReceiveForm" class="warehouse-form" hidden>
+      <h3>Przyjęcie istniejącej przesyłki na magazyn główny</h3>
+      <input id="receivingShipmentId" type="hidden">
+      <label for="receivingShipmentNumber">Numer przesyłki
+        <input id="receivingShipmentNumber" readonly>
+      </label>
+      <div class="warehouse-form-actions">
+        <button type="submit">Przyjmij pozycje do stanu</button>
+        <button type="button" data-close-warehouse-form>Zamknij</button>
+      </div>
+      <p class="warehouse-warning">Operacja zapisze przyjęcie w historii magazynu. Nie wykonuj jej, jeśli towar z tej przesyłki został już fizycznie wydany lub przyjęty inną drogą.</p>
+    </form>
+
+
+    <form id="itemCreateForm" class="warehouse-form" hidden>
+      <h3>Nowa pozycja magazynowa</h3>
+      <label for="newItemCompany">Spółka
+        <select id="newItemCompany" required></select>
+      </label>
+      <label for="newItemWarehouse">Nazwa magazynu
+        <select id="newItemWarehouse" required></select>
+      </label>
+      <label for="newItemName">Nazwa towaru
+        <input id="newItemName" maxlength="500" required>
+      </label>
+      <label for="newItemQuantity">Ilość
+        <input id="newItemQuantity" type="number" min="1" step="1" value="1" required>
+      </label>
+      <label for="newItemUnit">Jednostka miary (jm)
+        <select id="newItemUnit" required>
+          <option value="szt." selected>szt.</option>
+          <option value="opk.">opk.</option>
+          <option value="mb">mb</option>
+          <option value="kpl.">kpl.</option>
+        </select>
+      </label>
+      <label for="newItemSerial">Serial Number (SN)
+        <input id="newItemSerial" maxlength="500">
+      </label>
+      <label for="newItemOrderNumber">Nr zamówienia
+        <input id="newItemOrderNumber" maxlength="500">
+      </label>
+      <label for="newItemProjectNumber">Projekt
+        <input id="newItemProjectNumber" maxlength="500">
+      </label>
+      <label for="newItemSupplier">Dostawca
+        <input id="newItemSupplier" maxlength="500">
+      </label>
+      <div class="warehouse-form-actions">
+        <button type="submit">Zapisz pozycję</button>
+        <button type="button" data-close-warehouse-form>Zamknij</button>
+      </div>
+    </form>
+
+    <form id="issueCreateForm" class="warehouse-form" hidden>
+      <h3 id="issueFormTitle">Dokument WZ — wydanie towaru</h3>
+      <div class="warehouse-form-grid">
+        <label for="issueDate">Data wydania
+          <input id="issueDate" type="date" required>
+        </label>
+        <label for="issueWarehouse">Magazyn
+          <select id="issueWarehouse" required></select>
+        </label>
+        <label for="issueRecipient">Odbiorca
+          <select id="issueRecipient" required>
+            <option value="">Wybierz odbiorcę</option>
+          </select>
+        </label>
+      </div>
+      <div class="warehouse-line-list" id="issueLines"></div>
+      <button type="button" id="addIssueLineButton">Dodaj pozycję WZ</button>
+      <div class="warehouse-form-grid">
+        <label for="issueProjectNumber">Projekt
+          <input id="issueProjectNumber" maxlength="500" placeholder="Uzupełnia się z pozycji WZ">
+        </label>
+        <label for="issueDeliveryMethod">Sposób dostawy
+          <select id="issueDeliveryMethod" required>
+            <option value="">Wybierz sposób dostawy</option>
+            <option value="courier">Kurier</option>
+            <option value="personal_pickup">Odbiór osobisty</option>
+            <option value="own_transport">Transport własny</option>
+            <option value="dedicated_transport">Transport dedykowany</option>
+          </select>
+        </label>
+        <label id="issueTrackingNumberField" for="issueTrackingNumber" hidden>Numer listu przewozowego
+          <input id="issueTrackingNumber" maxlength="500">
+        </label>
+        <label id="issueReceivingPersonField" for="issueReceivingPerson" hidden>Nazwisko osoby odbierającej
+          <input id="issueReceivingPerson" maxlength="500">
+        </label>
+        <p class="issue-party-details" id="issueSellerDetails"></p>
+        <p class="issue-party-details" id="issueRecipientDetails"></p>
+      </div>
+      <div class="warehouse-form-actions">
+        <button type="submit" id="issueSubmitButton">Zatwierdź WZ i wydaj towar</button>
+        <button type="button" data-close-warehouse-form>Zamknij</button>
+      </div>
+      <p class="warehouse-warning" id="issueEditNote" hidden>Edycja dotyczy danych dokumentu (data, odbiorca, projekt, dostawa). Pozycje i stan magazynu nie zmieniają się — aby je zmienić, anuluj WZ i wystaw nowy.</p>
+      <p class="warehouse-warning" id="issueCreateNote">Zatwierdzenie od razu zmniejszy stan. Anulowanie WZ zapisuje kompensujący ruch i zachowuje historię.</p>
+    </form>
+
+    <form id="transferCreateForm" class="warehouse-form" hidden>
+      <h3>Przesunięcie międzymagazynowe (MM)</h3>
+      <div class="warehouse-form-grid">
+        <label for="transferSource">Z magazynu
+          <select id="transferSource" required></select>
+        </label>
+        <label for="transferTarget">Do magazynu
+          <select id="transferTarget" required></select>
+        </label>
+        <label for="transferNotes">Uwagi
+          <input id="transferNotes" maxlength="2000">
+        </label>
+      </div>
+      <div class="warehouse-line-list" id="transferLines"></div>
+      <button type="button" id="addTransferLineButton">Dodaj pozycję MM</button>
+      <div class="warehouse-form-actions">
+        <button type="submit">Zatwierdź MM i przesuń towar</button>
+        <button type="button" data-close-warehouse-form>Zamknij</button>
+      </div>
+      <p class="warehouse-warning">Towar można przesunąć do magazynu głównego lub magazynu tej samej spółki. Operacja zapisuje się w historii ruchów.</p>
+    </form>
+
+    <form id="stockEditForm" class="warehouse-form" hidden>
+      <h3>Edycja pozycji magazynowej</h3>
+      <input id="editStockEntryId" type="hidden">
+      <label for="editStockName">Nazwa towaru
+        <input id="editStockName" maxlength="500" required>
+      </label>
+      <label for="editStockQuantity">Ilość na stanie
+        <input id="editStockQuantity" type="number" min="0" step="1" required>
+      </label>
+      <label for="editStockUnit">Jednostka miary (jm)
+        <select id="editStockUnit" required>
+          <option value="szt.">szt.</option>
+          <option value="opk.">opk.</option>
+          <option value="mb">mb</option>
+          <option value="kpl.">kpl.</option>
+        </select>
+      </label>
+      <label for="editStockSerial">Serial Number (SN)
+        <input id="editStockSerial" maxlength="500">
+      </label>
+      <label for="editStockOrderNumber">Nr zamówienia
+        <input id="editStockOrderNumber" maxlength="500">
+      </label>
+      <label for="editStockProjectNumber">Projekt
+        <input id="editStockProjectNumber" maxlength="500">
+      </label>
+      <label for="editStockSupplier">Dostawca
+        <input id="editStockSupplier" maxlength="500">
+      </label>
+      <div class="warehouse-form-actions">
+        <button type="submit">Zapisz zmiany</button>
+        <button type="button" data-close-warehouse-form>Zamknij</button>
+      </div>
+    </form>
+
+    <details class="warehouse-details">
+      <summary>Zarządzanie magazynami</summary>
+      <div class="warehouse-table-wrap">
+        <table id="warehousesTable">
+          <thead><tr><th>Spółka</th><th>Nazwa magazynu</th><th>Typ</th><th>Akcja</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+
+    <section class="warehouse-toolbar" aria-label="Filtry magazynu">
+      <label for="warehouseCompanyFilter">Spółka
+        <select id="warehouseCompanyFilter"><option value="">Wszystkie spółki</option></select>
+      </label>
+      <label for="warehouseFilter">Magazyn
+        <select id="warehouseFilter"><option value="">Wszystkie magazyny</option></select>
+      </label>
+      <label for="stockSearch">Szukaj towaru
+        <input id="stockSearch" type="search" placeholder="Nazwa lub kod">
+      </label>
+      <button type="button" id="exportStockButton">Eksportuj Excel</button>
+      <button type="button" id="exportStockViewButton">Eksportuj widok tabeli</button>
+      <button type="button" id="refreshWarehouseButton">Odśwież</button>
+    </section>
+
+    <h3 id="stockTableTitle">Stan magazynowy</h3>
+    <section class="table-view-toolbar" aria-label="Ustawienia widoku tabeli magazynu">
+      <strong>Widok tabeli:</strong>
+      <div class="table-column-toggles">
+        <label><input type="checkbox" class="stock-column-toggle" data-column-key="lp" checked> LP</label>
+        <label><input type="checkbox" class="stock-column-toggle" data-column-key="warehouseName" checked> Magazyn</label>
+        <label><input type="checkbox" class="stock-column-toggle" data-column-key="name" checked> Nazwa towaru</label>
+        <label><input type="checkbox" class="stock-column-toggle" data-column-key="serialNumber" checked> SN</label>
+        <label><input type="checkbox" class="stock-column-toggle" data-column-key="orderNumber" checked> Nr zamówienia</label>
+        <label><input type="checkbox" class="stock-column-toggle" data-column-key="projectNumber" checked> Nr projektu</label>
+        <label><input type="checkbox" class="stock-column-toggle" data-column-key="supplier" checked> Dostawca</label>
+        <label><input type="checkbox" class="stock-column-toggle" data-column-key="unit" checked> Jednostka</label>
+        <label><input type="checkbox" class="stock-column-toggle" data-column-key="quantityIn" checked> Przyjęte</label>
+        <label><input type="checkbox" class="stock-column-toggle" data-column-key="quantityOut" checked> Wydane</label>
+        <label><input type="checkbox" class="stock-column-toggle" data-column-key="quantityOnHand" checked> Na stanie</label>
+        <label><input type="checkbox" class="stock-column-toggle" data-column-key="actions" checked> Akcja</label>
+        <label><input type="checkbox" id="stockOnlyAvailable"> Pokaż tylko dostępne towary</label>
+      </div>
+    </section>
+    <div class="warehouse-table-wrap">
+      <table id="stockTable">
+        <thead><tr>
+          <th data-column-key="lp">LP</th>
+          <th data-column-key="warehouseName" data-filter-key="warehouseName">Magazyn</th>
+          <th data-column-key="name" data-filter-key="name">Nazwa towaru</th>
+          <th data-column-key="serialNumber" data-filter-key="serialNumber">SN</th>
+          <th data-column-key="orderNumber" data-filter-key="orderNumber">Nr zamówienia</th>
+          <th data-column-key="projectNumber" data-filter-key="projectNumber">Nr projektu</th>
+          <th data-column-key="supplier" data-filter-key="supplier">Dostawca</th>
+          <th data-column-key="unit">Jednostka</th>
+          <th data-column-key="quantityIn">Przyjęte</th>
+          <th data-column-key="quantityOut">Wydane</th>
+          <th data-column-key="quantityOnHand">Na stanie</th>
+          <th data-column-key="actions">Akcja</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <details class="warehouse-details" open>
+      <summary>Dokumenty WZ</summary>
+      <div class="warehouse-table-wrap">
+        <table id="issuesTable">
+          <thead><tr><th>Numer WZ</th><th>Data</th><th>Spółka</th><th>Magazyn</th><th>Odbiorca</th><th>Pozycje</th><th>Status</th><th>Akcje</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="warehouse-details" id="movementsDetails">
+      <summary>Historia ruchów magazynowych</summary>
+      <div class="warehouse-table-wrap">
+        <table id="movementsTable">
+          <thead><tr><th>Data</th><th>Spółka</th><th>Magazyn</th><th>Towar</th><th>Rodzaj</th><th>Nr zamówienia</th><th>Ilość</th><th>Dokument / referencja</th><th>Użytkownik</th><th>Uwagi</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <section id="companiesModule" class="app-module catalog-module" hidden>
+    <div class="warehouse-heading">
+      <div><h2>Spółki</h2><p>Adresy spółek grupy Maxto, wykorzystywane jako dane sprzedawcy w dokumentach WZ.</p></div>
+      <button type="button" class="catalog-add-button" data-catalog-add="companies">Dodaj spółkę</button>
+    </div>
+    <form id="companyCatalogForm" class="warehouse-form catalog-form" hidden>
+      <h3 id="companyCatalogTitle">Nowa spółka</h3>
+      <input type="hidden" name="id">
+      <label>Nazwa spółki<input name="name" maxlength="500" required></label>
+      <label>Ulica<input name="street" maxlength="500" required></label>
+      <label>Numer<input name="buildingNumber" maxlength="100" required></label>
+      <label>Kod pocztowy<input name="postalCode" maxlength="30" required></label>
+      <label>Miasto<input name="city" maxlength="500" required></label>
+      <label>NIP<input name="nip" maxlength="30" required></label>
+      <div class="warehouse-form-actions">
+        <button type="submit">Zapisz spółkę</button>
+        <button type="button" data-catalog-cancel>Anuluj</button>
+      </div>
+    </form>
+    <div class="warehouse-table-wrap"><table id="companiesCatalogTable">
+      <thead><tr><th>Nazwa spółki</th><th>Ulica</th><th>Numer</th><th>Kod pocztowy</th><th>Miasto</th><th>NIP</th><th>Akcje</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
+  <section id="recipientsModule" class="app-module catalog-module" hidden>
+    <div class="warehouse-heading">
+      <div><h2>Odbiorcy</h2><p>Firmy lub osoby prywatne (wystarczy imię i nazwisko) wykorzystywane w dokumentach WZ.</p></div>
+      <button type="button" class="catalog-add-button" data-catalog-add="recipients">Dodaj odbiorcę</button>
+    </div>
+    <form id="recipientCatalogForm" class="warehouse-form catalog-form" hidden>
+      <h3 id="recipientCatalogTitle">Nowy odbiorca</h3>
+      <input type="hidden" name="id">
+      <label>Imię i nazwisko / nazwa odbiorcy<input name="name" maxlength="500" required></label>
+      <label>Ulica (opcjonalnie)<input name="street" maxlength="500"></label>
+      <label>Numer (opcjonalnie)<input name="buildingNumber" maxlength="100"></label>
+      <label>Kod pocztowy (opcjonalnie)<input name="postalCode" maxlength="30"></label>
+      <label>Miasto (opcjonalnie)<input name="city" maxlength="500"></label>
+      <label>Adres 2 (opcjonalny)<input name="address2" maxlength="500"></label>
+      <label>Osoba kontaktowa<input name="contactPerson" maxlength="200"></label>
+      <label>Numer telefonu<input name="phone" maxlength="100" type="tel"></label>
+      <div class="warehouse-form-actions">
+        <button type="submit">Zapisz odbiorcę</button>
+        <button type="button" data-catalog-cancel>Anuluj</button>
+      </div>
+    </form>
+    <div class="warehouse-table-wrap"><table id="recipientsCatalogTable">
+      <thead><tr><th>Nazwa odbiorcy</th><th>Ulica</th><th>Numer</th><th>Kod pocztowy</th><th>Miasto</th><th>Adres 2</th><th>Osoba kontaktowa</th><th>Telefon</th><th>Akcje</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
+  <section id="projectsModule" class="app-module catalog-module" hidden>
+    <div class="warehouse-heading">
+      <div><h2>Lista projektów</h2><p>Najedź kursorem na numer projektu, aby zobaczyć jego nazwę skróconą.</p></div>
+      <button type="button" class="catalog-add-button" data-catalog-add="projects">Dodaj projekt</button>
+    </div>
+    <form id="projectCatalogForm" class="warehouse-form catalog-form" hidden>
+      <h3 id="projectCatalogTitle">Nowy projekt</h3>
+      <input type="hidden" name="id">
+      <label>Numer projektu<input name="projectNumber" maxlength="500" required></label>
+      <label>Nazwa skrócona<input name="shortName" maxlength="500" required></label>
+      <label>Nazwa pełna<input name="fullName" maxlength="500" required></label>
+      <label>Data zakończenia projektu<input name="endDate" type="date"></label>
+      <div class="warehouse-form-actions">
+        <button type="submit">Zapisz projekt</button>
+        <button type="button" data-catalog-cancel>Anuluj</button>
+      </div>
+    </form>
+    <div class="warehouse-table-wrap"><table id="projectsCatalogTable">
+      <thead><tr><th>Numer projektu</th><th>Nazwa skrócona</th><th>Nazwa pełna</th><th>Data zakończenia</th><th>Akcje</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
 
 <div class="page-scroll-controls" aria-label="Przewijanie strony">
   <button type="button" id="scrollToTop" aria-label="Przewiń na początek strony" title="Początek strony">↑</button>
@@ -275,5 +638,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="src/api.js"></script>
 <script src="src/script.js"></script>
+<script src="src/warehouse.js"></script>
+<script src="src/catalogs.js"></script>
 </body>
 </html>

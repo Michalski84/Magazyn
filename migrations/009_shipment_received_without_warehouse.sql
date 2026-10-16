@@ -1,0 +1,2 @@
+ALTER TABLE shipments
+  ADD COLUMN IF NOT EXISTS received_without_warehouse BOOLEAN NOT NULL DEFAULT FALSE;

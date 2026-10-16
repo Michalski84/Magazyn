@@ -1,6 +1,7 @@
 const { pool } = require("./database");
 const { normalizeShipment } = require("./validation");
 const { formatRegisterNumber, parseRegisterNumber } = require("./shipment-numbers");
+const warehouse = require("./warehouse");
 
 function invalid(message) {
   const error = new Error(message);
@@ -9,8 +10,9 @@ function invalid(message) {
 }
 
 const shipmentSelect = `
-  SELECT s.id, s.register_number AS "numerId",
-         s.company_name AS "nazwaSpolki",
+  SELECT s.id, s.register_number AS "numerId", s.warehouse_id AS "warehouseId",
+           s.received_without_warehouse AS "bezMagazynu",
+           s.company_name AS "nazwaSpolki",
          s.carrier AS firma, s.tracking_number AS "numerListu",
          to_char(s.received_on, 'YYYY-MM-DD') AS data, s.recipient AS odbiorca,
          s.sender AS nadawca, s.shipment_type AS rodzaj,
@@ -49,17 +51,19 @@ async function getShipment(id, client = pool) {
   return result.rows[0] || null;
 }
 
-async function insertShipment(client, input, importedRegisterNumber = null) {
+async function insertShipment(client, input, importedRegisterNumber = null, options = {}) {
   const shipment = normalizeShipment(input);
   const registerNumber = importedRegisterNumber || await nextRegisterNumber(client, shipment.data);
+  shipment.numerId = registerNumber;
   const result = await client.query(`
     INSERT INTO shipments
-      (register_number, company_name, carrier, tracking_number, received_on, recipient, sender, shipment_type, package_quantity,
+      (register_number, warehouse_id, company_name, carrier, tracking_number, received_on, recipient, sender, shipment_type, package_quantity,
        order_number, project_number, status, recipient_signature, notes)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
     RETURNING id
   `, [
     registerNumber,
+    null,
     shipment.nazwaSpolki,
     shipment.firma, shipment.numerListu, shipment.data, shipment.odbiorca,
     shipment.nadawca, shipment.rodzaj, shipment.iloscPrzesylek,
@@ -81,6 +85,9 @@ async function insertShipment(client, input, importedRegisterNumber = null) {
     `, values);
   }
 
+  if (options.receiveInventory) {
+    await warehouse.receiveShipment(client, shipmentId, shipment, options.userId);
+  }
   return getShipment(shipmentId, client);
 }
 
@@ -107,11 +114,11 @@ async function preserveImportedRegisterNumber(client, value) {
   return parsed.value;
 }
 
-async function createShipment(input) {
+async function createShipment(input, userId) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const shipment = await insertShipment(client, input);
+    const shipment = await insertShipment(client, input, null, { receiveInventory: true, userId });
     await client.query("COMMIT");
     return shipment;
   } catch (error) {
@@ -122,11 +129,18 @@ async function createShipment(input) {
   }
 }
 
-async function replaceShipment(id, input) {
+async function replaceShipment(id, input, userId) {
   const shipment = normalizeShipment(input);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    const lockedShipment = await client.query("SELECT 1 FROM shipments WHERE id = $1 FOR UPDATE", [id]);
+    if (!lockedShipment.rowCount) {
+      const error = new Error("Nie znaleziono przesyłki.");
+      error.status = 404;
+      throw error;
+    }
+    const existingShipment = await getShipment(id, client);
     const result = await client.query(`
       UPDATE shipments
          SET company_name = $1, carrier = $2, tracking_number = $3, received_on = $4,
@@ -162,6 +176,10 @@ async function replaceShipment(id, input) {
         INSERT INTO shipment_items (shipment_id, name, quantity, unit, serial_number)
         VALUES ${placeholders.join(", ")}
       `, values);
+    }
+    if (!existingShipment.warehouseId && shipment.warehouseId) {
+      shipment.numerId = existingShipment.numerId;
+      await warehouse.receiveShipment(client, id, shipment, userId);
     }
     const updated = await getShipment(id, client);
     await client.query("COMMIT");
@@ -217,15 +235,26 @@ function normalizeOptionalText(value, field) {
 }
 
 async function deleteShipment(id, version) {
-  const result = await pool.query(
-    "DELETE FROM shipments WHERE id = $1 AND version = $2",
-    [id, Number(version)]
-  );
-  if (result.rowCount === 0) {
-    const exists = await pool.query("SELECT 1 FROM shipments WHERE id = $1", [id]);
-    const error = new Error(exists.rowCount ? "Przesyłka została zmieniona przez innego użytkownika. Odśwież listę przed usunięciem." : "Nie znaleziono przesyłki.");
-    error.status = exists.rowCount ? 409 : 404;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const shipment = await client.query(
+      "SELECT id FROM shipments WHERE id = $1 AND version = $2 FOR UPDATE",
+      [id, Number(version)]
+    );
+    if (!shipment.rowCount) {
+      const exists = await client.query("SELECT 1 FROM shipments WHERE id = $1", [id]);
+      const error = new Error(exists.rowCount ? "Przesyłka została zmieniona przez innego użytkownika. Odśwież listę przed usunięciem." : "Nie znaleziono przesyłki.");
+      error.status = exists.rowCount ? 409 : 404;
+      throw error;
+    }
+    await client.query("DELETE FROM shipments WHERE id = $1", [id]);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
     throw error;
+  } finally {
+    client.release();
   }
 }
 
@@ -258,6 +287,12 @@ async function importShipments(inputs, { replace = true } = {}) {
     await client.query("BEGIN");
     await client.query("LOCK TABLE shipments IN SHARE ROW EXCLUSIVE MODE");
     if (replace) {
+      const inventory = await client.query("SELECT 1 FROM stock_movements LIMIT 1");
+      if (inventory.rowCount) {
+        const error = new Error("Nie można zastąpić rejestru przesyłek po rozpoczęciu pracy z magazynem, ponieważ zachowa to historię ruchów.");
+        error.status = 409;
+        throw error;
+      }
       await client.query("DELETE FROM shipments");
     } else {
       const existing = await client.query("SELECT 1 FROM shipments LIMIT 1");

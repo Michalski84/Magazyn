@@ -153,6 +153,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return false;
     }
   };
+  window.addEventListener("shipment-inventory-received", () => reloadShipmentList());
 
   function showSignedIn(user) {
     loginScreen.hidden = true;
@@ -160,6 +161,7 @@ document.addEventListener("DOMContentLoaded", function () {
     currentUserName.textContent = user.username;
     loginError.hidden = true;
     loginError.textContent = "";
+    window.dispatchEvent(new Event("user-signed-in"));
   }
 
   loginForm.addEventListener("submit", async event => {
@@ -788,6 +790,7 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("iloscPrzesylek").value = s.iloscPrzesylek ?? 1;
     document.getElementById("zamowienie").value = s.zamowienie;
     document.getElementById("projekt").value = s.projekt || "";
+    document.getElementById("shipmentWarehouseSelect").value = s.warehouseId ? "main" : (s.bezMagazynu ? "none" : "main");
 
     const zawartoscContainer = document.getElementById("zawartoscFields");
     zawartoscContainer.innerHTML = "";
@@ -798,6 +801,7 @@ document.addEventListener("DOMContentLoaded", function () {
     editId = s.id;
     editVersion = s.version;
     document.getElementById("submitButton").textContent = "Zapisz zmiany";
+    document.getElementById("shipmentWarehouseSelect").disabled = Boolean(s.warehouseId);
     form.scrollIntoView({ behavior: scrollBehavior, block: "start" });
   };
 
@@ -827,6 +831,7 @@ document.addEventListener("DOMContentLoaded", function () {
         nazwaSpolki: companySelect.value === "inna"
           ? otherCompanyInput.value.trim()
           : companySelect.value,
+        warehouseId: document.getElementById("shipmentWarehouseSelect").value || null,
         firma: document.getElementById("firma").value.trim(),
         numerListu: document.getElementById("numerListu").value.trim(),
         data: document.getElementById("data").value,
@@ -860,6 +865,7 @@ document.addEventListener("DOMContentLoaded", function () {
         shipments = shipments.map(shipment => shipment.id === updated.id ? updated : shipment);
         editId = null;
         editVersion = null;
+        document.getElementById("shipmentWarehouseSelect").disabled = false;
         document.getElementById("submitButton").textContent = "Dodaj przesyłkę";
       } else {
         shipments.push(await window.shipmentApi.create(newShipment));
@@ -940,6 +946,7 @@ function copyToClipboard(id) {
   const entry = shipments.find(shipment => String(shipment.id) === String(id));
   if (!entry) return;
   const contents = Array.isArray(entry.zawartosc) ? entry.zawartosc : [];
+  const shipmentId = entry.numerId ?? entry.id;
 
   const zawartoscHTML = `
     <table border="1" cellpadding="4" cellspacing="0" style="border-collapse: collapse; font-family: Arial; font-size: 14px;">
@@ -962,6 +969,7 @@ function copyToClipboard(id) {
 
   const html = `
     <table border="0" cellpadding="5" cellspacing="0" style="font-family: Arial; font-size: 14px;">
+      <tr><th align="left">Numer ID</th><td>${escapeHTML(shipmentId)}</td></tr>
       <tr><th align="left">Firma przewozowa</th><td>${escapeHTML(entry.firma)}</td></tr>
       <tr><th align="left">Numer listu przewozowego</th><td>${escapeHTML(entry.numerListu)}</td></tr>
       <tr><th align="left">Data przyjęcia</th><td>${escapeHTML(entry.data)}</td></tr>
@@ -974,6 +982,7 @@ function copyToClipboard(id) {
     </table>
   `;
   const plainText = [
+    `Numer ID: ${shipmentId || ""}`,
     `Firma przewozowa: ${entry.firma || ""}`,
     `Numer listu przewozowego: ${entry.numerListu || ""}`,
     `Data przyjęcia: ${entry.data || ""}`,

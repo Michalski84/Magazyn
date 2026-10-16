@@ -1,0 +1,5 @@
+ALTER TABLE issue_documents
+  ADD COLUMN IF NOT EXISTS project_number TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS delivery_method TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS delivery_tracking_number TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS receiving_person TEXT NOT NULL DEFAULT '';
