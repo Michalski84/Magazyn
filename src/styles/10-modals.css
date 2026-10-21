@@ -1,0 +1,217 @@
+/* 10-modals.css: Okna modalne: modal podpisu odbiorcy i modal notatek. */
+
+/* Styl modala z podpisem */
+#signatureModal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: min(560px, calc(100% - 48px));
+  max-height: calc(100% - 48px);
+  transform: translate(-50%, -50%);
+  background-color: #2b2b3c;
+  z-index: 1000;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+  padding: 20px;
+  display: none;
+  overflow: auto;
+}
+
+#signatureModal h3 {
+  margin-top: 0;
+  color: #fff;
+}
+
+#signatureModal label {
+  display: block;
+  margin-bottom: 8px;
+  color: #ddd;
+  font-weight: 600;
+}
+
+#recipientNameInput {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #777;
+  border-radius: 4px;
+  background: #fff;
+  color: #222;
+  font: inherit;
+}
+
+#recipientNameInput:focus {
+  outline: 2px solid #4da6ff;
+  outline-offset: 1px;
+}
+
+#signatureModal button {
+  margin-top: 15px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+#signatureModal button:hover {
+  background-color: #0056b3;
+}
+
+/* --- Modal notatek: okno, nagłówek, pola i przyciski --- */
+.notes-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.notes-dialog {
+  width: min(560px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background: #2b2b3c;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+}
+
+.notes-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.notes-dialog-header h2 {
+  margin: 0;
+  color: #fff;
+}
+
+.notes-dialog .notes-close-button {
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.notes-dialog label {
+  display: block;
+  margin-bottom: 8px;
+  color: #ddd;
+  font-weight: 600;
+}
+
+#notesTextarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 180px;
+  padding: 12px;
+  border: 1px solid #777;
+  border-radius: 4px;
+  background: #fff;
+  color: #222;
+  font: inherit;
+  resize: vertical;
+}
+
+#notesTextarea:focus {
+  outline: 2px solid #4da6ff;
+  outline-offset: 1px;
+}
+
+.notes-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.notes-dialog .notes-actions button {
+  width: auto;
+  margin: 0;
+}
+
+#notesSaveButton {
+  background: #397a4c;
+}
+
+#notesDeleteButton {
+  background: #a43a32;
+}
+
+.notes-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+
+/* --- Podgląd WZ przed zatwierdzeniem --- */
+.issue-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.issue-preview {
+  width: min(720px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background: #2b2b3c;
+  color: #ddd;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+}
+
+.issue-preview h3 { margin: 0 0 12px; color: #fff; }
+.issue-preview-header { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0 0 12px; }
+.issue-preview-header dt { font-weight: 600; }
+.issue-preview-header dd { margin: 0; }
+.issue-preview-party { margin: 0 0 12px; white-space: pre-wrap; font: inherit; }
+.issue-preview-table { width: 100%; border-collapse: collapse; }
+.issue-preview-table th, .issue-preview-table td { padding: 6px 8px; border-bottom: 1px solid #555; text-align: left; }
+.issue-preview-total { margin: 12px 0 0; font-weight: 600; }
+.issue-preview-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+/* --- Filtry listy dokumentów WZ --- */
+.issue-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.issue-filters label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.issue-filter-count { margin-left: auto; opacity: 0.8; }
+
+/* --- Role: ukrywanie elementów tylko dla administratora i kontrolek zapisu dla roli „viewer” --- */
+body:not([data-role="admin"]) .admin-only {
+  display: none !important;
+}
+
+body[data-role="viewer"] .warehouse-actions,
+body[data-role="viewer"] .catalog-add-button,
+body[data-role="viewer"] #stockSelectionBar button:not(#exportSelectionButton):not(#clearStockSelectionButton),
+body[data-role="viewer"] #addZawartoscButton,
+body[data-role="viewer"] #importExcelButton,
+body[data-role="warehouse"] .catalog-add-button {
+  display: none !important;
+}

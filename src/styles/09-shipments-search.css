@@ -1,0 +1,198 @@
+/* 09-shipments-search.css: Moduł przesyłek: wyszukiwanie, filtry, okresy dat, arkusz zawartości przesyłki. */
+
+/* --- Wyszukiwanie: sekcja i pola --- */
+.search-section {
+  margin: 0;
+  padding: 1rem;
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 10px;
+}
+
+.entry-workspace .search-section {
+  margin: 0;
+}
+
+.search-section h2 {
+  margin: 0 0 0.35rem;
+  color: #fff;
+}
+
+.search-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0.65rem;
+}
+
+.search-section input[type="text"],
+.search-section input[type="search"] {
+  padding: 0.45rem 0.6rem;
+  width: 100%;
+  margin-bottom: 0;
+  border-radius: 5px;
+  border: 1px solid #444;
+  background-color: #2a2a2a;
+  color: #eee;
+}
+
+.search-toolbar button {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.search-toolbar input[type="search"] {
+  flex: 1;
+  max-width: 400px;
+}
+
+.search-hint {
+  margin: 0 0 0.65rem;
+  color: #aaa;
+  font-size: 0.85rem;
+}
+
+.search-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 0.7rem 0.9rem;
+  margin-bottom: 0.8rem;
+}
+
+.search-fields label {
+  display: grid;
+  gap: 0.3rem;
+  color: #ccc;
+  font-size: 0.85rem;
+}
+
+/* --- Filtry przesyłek i okresy dat --- */
+.shipment-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 0.9rem;
+  margin-bottom: 0.8rem;
+  color: #ccc;
+}
+
+.shipment-filters label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.shipment-filters select,
+.date-period-fields input {
+  padding: 0.3rem 0.4rem;
+  border: 1px solid #444;
+  border-radius: 5px;
+  background: #2a2a2a;
+  color: #eee;
+}
+
+.date-period-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.date-period-fields[hidden] {
+  display: none;
+}
+
+/* --- Arkusz: sterowanie i pola zawartości --- */
+.spreadsheet-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.spreadsheet-controls button {
+  margin: 0;
+}
+
+#zawartoscFields > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  align-items: center;
+}
+
+#zawartoscFields input[name="nazwa"] {
+  flex: 3;
+  min-width: 200px;
+}
+
+#zawartoscFields input[name="ilosc"] {
+  flex: 1;
+  min-width: 80px;
+}
+
+#zawartoscFields select[name="jednostka"] {
+  flex: 1;
+  min-width: 80px;
+}
+
+#zawartoscFields input[name="sn"] {
+  flex: 2;
+  min-width: 150px;
+}
+
+#zawartoscFields button {
+  padding: 4px 6px;
+  font-size: 12px;
+  background: #c0392b;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#zawartoscFields .remove-item-button {
+  min-width: 30px;
+  height: 30px;
+  padding: 0;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* --- Tabela zawartości przesyłki --- */
+#zawartoscContainer table {
+  margin-top: 10px;
+  width: 100%;
+  border: 1px solid #444;
+  background-color: #2b2b3c;
+  color: #f1f1f1;
+}
+
+#zawartoscContainer th, #zawartoscContainer td {
+  padding: 8px;
+  border: 1px solid #444;
+  text-align: left;
+}
+
+#zawartoscContainer input,
+#zawartoscContainer select {
+  width: 100%;
+  padding: 6px;
+  background-color: #3a3a4f;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+#zawartoscContainer button {
+  padding: 4px 6px;
+  font-size: 14px;
+  background: #c0392b;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+

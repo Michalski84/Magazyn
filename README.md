@@ -28,7 +28,7 @@ Aplikacja webowa dla kilku użytkowników w zaufanej sieci lokalnej. Node.js udo
    npm run create-user -- operator
    ```
 
-   Hasło jest wprowadzane bez wyświetlania na ekranie; musi mieć co najmniej 12 znaków i maksymalnie 72 bajty UTF-8.
+   Hasło jest wprowadzane bez wyświetlania na ekranie; musi mieć co najmniej 12 znaków i maksymalnie 72 bajty UTF-8. Opcjonalny drugi argument to rola: `admin` (domyślnie), `warehouse` (magazyn i przesyłki, bez zapisu w kartotekach) lub `viewer` (tylko odczyt), np. `npm run create-user -- jan viewer`. Istniejące konta po aktualizacji mają rolę `admin`. Administrator widzi zakładkę **Dziennik zmian** (kto i kiedy zmienił dane oraz logowania).
 6. (Migracja istniejących danych) Przed pierwszym użyciem wykonaj kopię `data/storage.json`, uruchom:
 
    ```powershell
@@ -57,9 +57,23 @@ W formularzu przesyłki pole **Magazyn docelowy** ma dwie opcje: „Przyjmij na 
 
 WZ zatwierdza wydanie natychmiast i atomowo sprawdza dostępny stan wybranej partii; jeden dokument może obejmować towar tylko jednej spółki. Dokument ma numer `WZ/RRRR/NNNN`, można go wydrukować lub anulować (anulowanie zapisuje ruch zwrotny). Korekty stanu wymagają podania przyczyny i nie mogą obniżyć stanu poniżej zera. Tabela magazynu pokazuje partie osobno wraz z magazynem, LP, dostawcą (nadawcą przesyłki), numerami zamówienia i projektu, przyjęciami, wydaniami i stanem; stany można wyeksportować do Excela.
 
+Tabela stanów ma kolumnę **Spółka** z filtrem oraz ptaszki zaznaczania. Zaznaczone pozycje można zamienić na WZ (jedna spółka i jeden magazyn), na przesunięcie MM (jeden magazyn źródłowy) lub wyeksportować do Excela. Przed zatwierdzeniem WZ pokazywany jest podgląd dokumentu, a lista dokumentów WZ ma filtry (numer, odbiorca, projekt, daty, status).
+
 Ruchy są historią źródłową, a stan wylicza się z ich sumy. Przyjęcia z przesyłek są przechowywane w magazynie jako niezależne partie; numer przesyłki, dostawca i pozycje nie są połączone kluczami z rejestrem przesyłek. Import zastępujący rejestr jest blokowany, gdy istnieją ruchy magazynowe. Migracja `010_single_main_warehouse.sql` scalała wcześniejsze magazyny z głównym; migracja `011_managed_warehouses_and_detached_shipments.sql` dodaje zarządzanie magazynami i usuwa powiązania partii z pozycjami przesyłek.
 
-Pliki magazynu są rozdzielone na `server/warehouse.js` (logika operacji i transakcji), `src/warehouse.js` (interfejs zakładki), endpointy API w `server.js` i `src/api.js`, a migracje pozostają w `migrations/`. Logi serwera mają wspólny format czasu, poziomu i kontekstu przez `server/logger.js`; błędy żądań zawierają status, komunikat, a dla błędów serwera także stos. Są wypisywane na konsolę i zapisywane w dziennych plikach `logs/app-RRRR-MM-DD.log`; przy uruchomieniu usuwane są pliki aplikacji starsze niż 30 dni, a pliki logów są wykluczone z repozytorium.
+Pliki magazynu są rozdzielone na moduły w `server/warehouse/` (logika operacji i transakcji) oraz `src/warehouse/` (interfejs zakładki), a migracje pozostają w `migrations/`. Logi serwera mają wspólny format czasu, poziomu i kontekstu przez `server/logger.js`; błędy żądań zawierają status, komunikat, a dla błędów serwera także stos. Są wypisywane na konsolę i zapisywane w dziennych plikach `logs/app-RRRR-MM-DD.log`; przy uruchomieniu usuwane są pliki aplikacji starsze niż 30 dni, a pliki logów są wykluczone z repozytorium.
+
+## Struktura projektu
+
+- `server.js` – punkt wejścia (migracje, start i zamykanie serwera).
+- `server/app.js` – konfiguracja Express (zabezpieczenia, sesje, montowanie tras, pliki statyczne).
+- `server/http/` – wspólne middleware i konfiguracja HTTP.
+- `server/routes/` – trasy API: `auth`, `shipments`, `catalogs`, `warehouse`.
+- `server/catalogs/` – słowniki spółek, odbiorców i projektów (`companies`, `recipients`, `projects`, `validation`; `index.js` udostępnia API i usuwanie).
+- `server/warehouse/` – logika magazynu: `warehouses`, `items`, `stock`, `issues` (WZ), `transfers` (MM), `adjustments` (KOR), `receiving` (PZ) oraz wspólne `validation` i `ledger`; `index.js` udostępnia publiczne API.
+- `src/shared/` – klient API i wspólny interfejs (toast, motyw, przewijanie).
+- `src/shipments/`, `src/warehouse/`, `src/catalogs/` – skrypty poszczególnych zakładek; pliki ładowane są w kolejności z `index.htm`, a `main.js` w każdym module podłącza zdarzenia po załadowaniu strony.
+- `src/styles/` – style podzielone na pliki; kolejność w `index.htm` jest istotna dla kaskady CSS.
 
 ## Kartoteki
 
@@ -90,3 +104,5 @@ npm start
 ```
 
 Zmiany schematu dodawaj jako kolejne uporządkowane pliki SQL w `migrations/`. Aplikacja wykona je przy starcie, z zapisem zastosowanych migracji w bazie.
+
+Testy: `test/validation.test.js` (walidacja), `test/warehouse.test.js` i `test/roles.test.js` (logika magazynu oraz role/dziennik zmian na tymczasowym schemacie PostgreSQL `test_*` tworzonym z `DATABASE_URL`; bez bazy są pomijane) oraz `test/client.test.js` (interfejs w jsdom).

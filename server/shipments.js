@@ -3,6 +3,7 @@ const { normalizeShipment } = require("./validation");
 const { formatRegisterNumber, parseRegisterNumber } = require("./shipment-numbers");
 const warehouse = require("./warehouse");
 
+// Rzuca błąd walidacji (HTTP 400).
 function invalid(message) {
   const error = new Error(message);
   error.status = 400;
@@ -33,6 +34,7 @@ const shipmentSelect = `
     LEFT JOIN shipment_items i ON i.shipment_id = s.id
 `;
 
+// Zwraca wszystkie przesyłki wraz z zawartością.
 async function getShipments(client = pool) {
   const result = await client.query(`
     ${shipmentSelect}
@@ -42,6 +44,7 @@ async function getShipments(client = pool) {
   return result.rows;
 }
 
+// Zwraca jedną przesyłkę wraz z zawartością (lub null).
 async function getShipment(id, client = pool) {
   const result = await client.query(`
     ${shipmentSelect}
@@ -51,6 +54,7 @@ async function getShipment(id, client = pool) {
   return result.rows[0] || null;
 }
 
+// Zapisuje przesyłkę z pozycjami; opcjonalnie przyjmuje towary na magazyn.
 async function insertShipment(client, input, importedRegisterNumber = null, options = {}) {
   const shipment = normalizeShipment(input);
   const registerNumber = importedRegisterNumber || await nextRegisterNumber(client, shipment.data);
@@ -91,6 +95,7 @@ async function insertShipment(client, input, importedRegisterNumber = null, opti
   return getShipment(shipmentId, client);
 }
 
+// Nadaje kolejny numer rejestru dla roku daty odbioru.
 async function nextRegisterNumber(client, receivedOn) {
   const year = Number(receivedOn.slice(0, 4));
   const result = await client.query(`
@@ -103,6 +108,7 @@ async function nextRegisterNumber(client, receivedOn) {
   return formatRegisterNumber(result.rows[0].sequence, year);
 }
 
+// Zachowuje numer z importu i podnosi licznik roku, jeśli trzeba.
 async function preserveImportedRegisterNumber(client, value) {
   const parsed = parseRegisterNumber(value);
   await client.query(`
@@ -114,6 +120,7 @@ async function preserveImportedRegisterNumber(client, value) {
   return parsed.value;
 }
 
+// Tworzy przesyłkę (transakcja, przyjęcie na magazyn).
 async function createShipment(input, userId) {
   const client = await pool.connect();
   try {
@@ -129,6 +136,7 @@ async function createShipment(input, userId) {
   }
 }
 
+// Podmienia dane przesyłki z kontrolą wersji (optymistyczne blokowanie).
 async function replaceShipment(id, input, userId) {
   const shipment = normalizeShipment(input);
   const client = await pool.connect();
@@ -192,6 +200,7 @@ async function replaceShipment(id, input, userId) {
   }
 }
 
+// Częściowa aktualizacja (status, notatki, podpis) z kontrolą wersji.
 async function patchShipment(id, patch) {
   const fields = {
     status: ["status", value => {
@@ -226,6 +235,7 @@ async function patchShipment(id, patch) {
   return getShipment(id);
 }
 
+// Waliduje opcjonalne pole tekstowe przesyłki.
 function normalizeOptionalText(value, field) {
   if (typeof value !== "string") invalid(`Nieprawidłowa wartość pola ${field}.`);
   if (value.length > (field === "notatki" ? 20_000 : 500)) {
@@ -234,6 +244,7 @@ function normalizeOptionalText(value, field) {
   return value.trim();
 }
 
+// Usuwa przesyłkę z kontrolą wersji.
 async function deleteShipment(id, version) {
   const client = await pool.connect();
   try {
@@ -258,6 +269,7 @@ async function deleteShipment(id, version) {
   }
 }
 
+// Importuje przesyłki zbiorczo (zastąpienie rejestru lub migracja do pustej bazy).
 async function importShipments(inputs, { replace = true } = {}) {
   if (!Array.isArray(inputs) || inputs.length > 5000) {
     invalid("Import może zawierać maksymalnie 5000 przesyłek.");

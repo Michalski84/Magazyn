@@ -43,7 +43,7 @@ async function main() {
   await runMigrations();
   const username = process.argv[2]?.trim();
   if (!username || !/^[\p{L}\p{N}_.-]{2,80}$/u.test(username)) {
-    throw new Error("Użycie: npm run create-user -- nazwa_użytkownika (2–80 liter, cyfr, kropek, myślników lub podkreśleń).");
+    throw new Error("Użycie: npm run create-user -- nazwa_użytkownika [admin|warehouse|viewer] (2–80 liter, cyfr, kropek, myślników lub podkreśleń).");
   }
   const password = await readHidden("Hasło: ");
   if (password.length < 12 || Buffer.byteLength(password, "utf8") > 72) {
@@ -53,11 +53,15 @@ async function main() {
   if (password !== confirmation) throw new Error("Podane hasła różnią się.");
 
   const passwordHash = await bcrypt.hash(password, 12);
+  const role = ["admin", "warehouse", "viewer"].includes(process.argv[3]) ? process.argv[3] : "admin";
+  if (process.argv[3] && process.argv[3] !== role) {
+    throw new Error("Rola musi być jedną z: admin, warehouse, viewer.");
+  }
   await pool.query(
-    "INSERT INTO app_users (username, password_hash) VALUES ($1, $2)",
-    [username, passwordHash]
+    "INSERT INTO app_users (username, password_hash, role) VALUES ($1, $2, $3)",
+    [username, passwordHash, role]
   );
-  console.log(`Utworzono użytkownika ${username}.`);
+  console.log(`Utworzono użytkownika ${username} (rola: ${role}).`);
 }
 
 main()

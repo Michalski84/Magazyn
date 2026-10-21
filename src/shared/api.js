@@ -1,3 +1,5 @@
+// Klient API: wspólna funkcja zapytań HTTP oraz metody window.shipmentApi dla wszystkich modułów.
+// Pojedyncze zapytanie do /api: obsługuje JSON, błędy serwera i wygaśnięcie sesji (401).
 async function apiRequest(path, options = {}) {
   const url = `/api${path}`;
   const method = options.method || "GET";
@@ -32,6 +34,7 @@ window.shipmentApi = {
     body: { username, password }
   }),
   logout: () => apiRequest("/auth/logout", { method: "POST" }),
+  audit: (params = {}) => apiRequest(`/admin/audit?${new URLSearchParams(params)}`),
   list: () => apiRequest("/shipments"),
   create: shipment => apiRequest("/shipments", { method: "POST", body: shipment }),
   update: (id, shipment) => apiRequest(`/shipments/${id}`, { method: "PUT", body: shipment }),

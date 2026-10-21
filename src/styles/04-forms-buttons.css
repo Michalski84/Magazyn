@@ -1,0 +1,152 @@
+/* 04-forms-buttons.css: Komponenty wspólne: obszar roboczy wpisów, formularze, pola, przyciski i separatory. */
+
+/* --- Obszar roboczy wpisów: układ sekcji --- */
+.entry-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  max-width: 1800px;
+  margin: 0 auto 12px;
+  align-items: start;
+}
+
+.entry-workspace > form,
+.entry-workspace > .search-section {
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+}
+
+.entry-workspace + hr {
+  margin: 6px auto;
+}
+
+/* --- Formularze: układ i etykiety --- */
+form {
+  background: #2b2b3c;
+  padding: 14px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  max-width: 800px;
+  margin: 0 auto 30px;
+}
+
+form label {
+  display: block;
+  margin-top: 8px;
+  font-weight: 600;
+  color: #ddd;
+}
+
+.shipment-type-quantity {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+
+.shipment-type-quantity > label {
+  min-width: 0;
+  margin-top: 0;
+}
+
+/* --- Pola formularzy: input, select i stany focus --- */
+form input,
+form select,
+form button[type="button"] {
+  margin-top: 4px;
+  padding: 6px 8px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #444;
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: #3a3a4f;
+  color: #f1f1f1;
+  transition: border-color 0.2s, background-color 0.3s;
+}
+
+form #nazwaSpolkiSelect,
+#companySearchFilter,
+#statusFilter,
+#shipmentsTable td select {
+  background-color: #3a3a4f;
+  color: #f1f1f1;
+  color-scheme: dark;
+}
+
+form input:focus,
+form select:focus {
+  border-color: #4da6ff;
+  outline: none;
+  background-color: #4b4b64;
+}
+
+/* --- Zawartość przesyłki: kontener i pola pozycji --- */
+#zawartoscContainer {
+  margin-top: 10px;
+  padding-top: 6px;
+  border-top: 1px dashed #555;
+}
+
+#zawartoscFields > div {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  align-items: center;
+}
+
+#zawartoscFields input {
+  flex: 1;
+}
+
+#zawartoscFields button {
+  padding: 6px 10px;
+  background: #c0392b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* --- Przyciski: submit i button --- */
+button[type="submit"] {
+  margin-top: 12px;
+  background: #397a4c;
+  color: white;
+  border: none;
+  padding: 8px 10px;
+  font-size: 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+button[type="submit"]:hover {
+  background: #306740;
+}
+
+button[type="button"] {
+  background: #1f5f8a;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+button[type="button"]:hover {
+  background: #174d73;
+}
+
+/* --- Separator hr --- */
+hr {
+  margin: 50px auto;
+  border: 0;
+  border-top: 1px solid #444;
+  max-width: 800px;
+}
+

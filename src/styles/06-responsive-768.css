@@ -1,0 +1,43 @@
+/* 06-responsive-768.css: Responsywność: reguły dla ekranów do 768px (nagłówek, formularze, przyciski przewijania, toast). */
+
+/* --- Media query: max-width 768px --- */
+@media (max-width: 768px) {
+  .app-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .app-header h1 {
+    grid-column: 1 / -1;
+    padding-top: 42px;
+  }
+
+  .header-actions {
+    grid-column: 2;
+    justify-content: flex-end;
+  }
+
+  #zawartoscFields > div {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  form input,
+  form select,
+  button[type="button"],
+  button[type="submit"] {
+    max-width: 100%;
+  }
+
+  .page-scroll-controls {
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .toast-notification {
+    right: 12px;
+    bottom: 12px;
+    max-width: calc(100vw - 24px);
+  }
+}
+

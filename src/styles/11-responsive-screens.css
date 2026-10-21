@@ -1,0 +1,23 @@
+/* 11-responsive-screens.css: Responsywność: reguły dla bardzo szerokich (min 1200px) i wąskich (max 480px) ekranów, ładowane na końcu. */
+
+/* --- Media query: min-width 1200px --- */
+@media (min-width: 1200px) {
+  .entry-workspace {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+}
+
+/* --- Media query: max-width 480px --- */
+@media (max-width: 480px) {
+  .notes-modal {
+    padding: 12px;
+  }
+
+  .notes-dialog {
+    padding: 18px;
+  }
+}
+
+.row-actions { white-space: nowrap; width: 1%; }
+.row-action-button { padding: 2px 6px; margin: 0 1px; min-width: 0; font-size: 14px; line-height: 1.2; }

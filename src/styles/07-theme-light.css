@@ -1,0 +1,213 @@
+/* 07-theme-light.css: Motyw jasny (body[data-theme="light"]) wraz z dołączoną regułą responsywną magazynu (max-width 700px), zachowaną w tym miejscu ze względu na kolejność kaskady. */
+
+/* --- Motyw jasny: baza i zakładki --- */
+body[data-theme="light"] {
+  background: #efeee8;
+  color: #30323a;
+  color-scheme: light;
+}
+
+body[data-theme="light"] .module-tab {
+  color: #202020;
+  background: #e8e8ef !important;
+}
+
+body[data-theme="light"] .module-tab.is-active {
+  color: #fff;
+}
+
+/* --- Motyw jasny: magazyn --- */
+body[data-theme="light"] .warehouse-heading,
+body[data-theme="light"] .warehouse-toolbar {
+  background: #f2f2f6;
+  border-color: #ccc;
+  color: #222;
+}
+
+body[data-theme="light"] .warehouse-heading p,
+body[data-theme="light"] .warehouse-warning {
+  color: #555;
+}
+
+body[data-theme="light"] .issue-party-details {
+  color: #555;
+}
+
+body[data-theme="light"] .warehouse-form textarea,
+body[data-theme="light"] .issue-line input,
+body[data-theme="light"] .issue-line select,
+body[data-theme="light"] .transfer-line input,
+body[data-theme="light"] .transfer-line select {
+  background: #fff;
+  color: #222;
+  border-color: #bbb;
+}
+
+body[data-theme="light"] .warehouse-details > summary {
+  background: #e8e8ef;
+  color: #222;
+}
+
+/* --- Responsywność magazynu: max-width 700px --- */
+@media (max-width: 700px) {
+  .warehouse-heading {
+    align-items: flex-start;
+  }
+
+  .warehouse-actions {
+    width: 100%;
+  }
+
+  .warehouse-actions button {
+    flex: 1 1 140px;
+  }
+
+  .issue-line,
+  .transfer-line {
+    grid-template-columns: 1fr 100px;
+  }
+
+  .issue-line--serial {
+    grid-template-columns: 1fr 100px;
+  }
+
+  .issue-line button,
+  .transfer-line button {
+    grid-column: 1 / -1;
+  }
+}
+
+/* --- Motyw jasny: nagłówki, etykiety i formularze --- */
+body[data-theme="light"] h1,
+body[data-theme="light"] .app-header h1,
+body[data-theme="light"] .search-section h2,
+body[data-theme="light"] #signatureModal h3,
+body[data-theme="light"] .notes-dialog-header h2 {
+  color: #292b32;
+}
+
+body[data-theme="light"] .login-form p,
+body[data-theme="light"] .login-form label,
+body[data-theme="light"] form label,
+body[data-theme="light"] .shipment-filters,
+body[data-theme="light"] .search-fields label,
+body[data-theme="light"] .table-view-toolbar,
+body[data-theme="light"] #signatureModal label,
+body[data-theme="light"] .notes-dialog label {
+  color: #424650;
+}
+
+body[data-theme="light"] form,
+body[data-theme="light"] .login-form,
+body[data-theme="light"] .notes-dialog {
+  background: #e4e2da;
+  border-color: #cbc8bd;
+}
+
+body[data-theme="light"] .search-section {
+  background: #e9e7df;
+  border-color: #d0cdc3;
+}
+
+body[data-theme="light"] .table-view-toolbar {
+  background: #e2e0d8;
+  border-color: #c9c6bb;
+}
+
+body[data-theme="light"] .table-color-settings {
+  border-color: #c9c6bb;
+}
+
+body[data-theme="light"] .table-color-settings small,
+body[data-theme="light"] .search-hint,
+body[data-theme="light"] .app-footer {
+  color: #666a72;
+}
+
+/* --- Motyw jasny: tabele --- */
+body[data-theme="light"] table,
+body[data-theme="light"] #zawartoscContainer table {
+  background: #f6f5f0;
+  color: #30323a;
+}
+
+body[data-theme="light"] th {
+  background: #d8d6ce;
+  color: #292b32;
+}
+
+body[data-theme="light"] td {
+  color: #30323a;
+}
+
+body[data-theme="light"] th,
+body[data-theme="light"] td,
+body[data-theme="light"] #zawartoscContainer table,
+body[data-theme="light"] #zawartoscContainer th,
+body[data-theme="light"] #zawartoscContainer td {
+  border-color: #c9c6bb;
+}
+
+/* --- Motyw jasny: pola formularzy --- */
+body[data-theme="light"] form input,
+body[data-theme="light"] form select,
+body[data-theme="light"] form #nazwaSpolkiSelect,
+body[data-theme="light"] #zawartoscContainer input,
+body[data-theme="light"] #zawartoscContainer select,
+body[data-theme="light"] .search-section input[type="text"],
+body[data-theme="light"] .search-section input[type="search"],
+body[data-theme="light"] .shipment-filters select,
+body[data-theme="light"] .date-period-fields input,
+body[data-theme="light"] #companySearchFilter,
+body[data-theme="light"] #statusFilter,
+body[data-theme="light"] #shipmentsTable td select,
+body[data-theme="light"] .login-form input {
+  border-color: #bcb9ae;
+  background-color: #e0ded6;
+  color: #30323a;
+  color-scheme: light;
+}
+
+body[data-theme="light"] form input:focus,
+body[data-theme="light"] form select:focus {
+  background-color: #f4f2eb;
+}
+
+body[data-theme="light"] option {
+  background: #f4f2eb;
+  color: #30323a;
+}
+
+body[data-theme="light"] #recipientNameInput,
+body[data-theme="light"] #notesTextarea {
+  border-color: #bcb9ae;
+  background: #f4f2eb;
+  color: #30323a;
+}
+
+/* --- Motyw jasny: przełącznik motywu i przyciski --- */
+body[data-theme="light"] #themeToggleButton {
+  border: 1px solid #79704f;
+  background: #d3c99e;
+  color: #292b32;
+}
+
+body[data-theme="light"] #themeToggleButton:hover {
+  background: #c5b97f;
+}
+
+body[data-theme="light"] hr {
+  border-top-color: #c9c6bb;
+}
+
+body[data-theme="light"] td button {
+  color: #30323a;
+}
+
+body[data-theme="light"] #warehouseModule button,
+body[data-theme="light"] #warehouseModule td button,
+body[data-theme="light"] .catalog-module button,
+body[data-theme="light"] .catalog-module td button {
+  color: #fff;
+}
+

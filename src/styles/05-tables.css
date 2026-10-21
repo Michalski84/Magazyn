@@ -1,0 +1,203 @@
+/* 05-tables.css: Komponenty wspólne: paski widoku tabel, tabele, przyciski w komórkach, oznaczenia przesyłek i przyciski przewijania strony. */
+
+/* --- Pasek widoku tabeli: przełączniki kolumn i kolory --- */
+.table-view-toolbar {
+  display: block;
+  max-width: 1800px;
+  box-sizing: border-box;
+  margin: 0 auto 1rem;
+  padding: 0.75rem;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #242433;
+  color: #e1e1e1;
+}
+
+.table-column-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  margin-top: 0.5rem;
+}
+
+#stockTable [hidden] {
+  display: none !important;
+}
+
+#warehouseModule .table-view-toolbar {
+  margin: 0 0 12px;
+}
+
+.table-view-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.table-color-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid #444;
+}
+
+.table-color-settings small {
+  color: #bbb;
+}
+
+#shipmentNumberColorsToggle {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+/* --- Tabele: podstawowe style table, th, td --- */
+table {
+  width: 100%;
+  max-width: 1800px;
+  border-collapse: collapse;
+  background: #2b2b3c;
+  margin: 0 auto 50px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  font-size: 13px;
+}
+
+th, td {
+  border: 1px solid #444;
+  padding: 12px;
+  text-align: left;
+  font-size: 13px;
+}
+
+th {
+  background: #3b3b50;
+  font-weight: 600;
+  color: #f1f1f1;
+}
+
+td {
+  color: #e1e1e1;
+}
+
+/* --- Przyciski akcji w tabelach --- */
+.action-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 32px);
+  gap: 4px;
+}
+
+.action-buttons button {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+
+.action-buttons button.has-note,
+.action-buttons button.has-signature {
+  border-radius: 4px;
+  background: #397a4c;
+}
+
+/* --- Przesyłki: notatki i kolory numerów --- */
+.shipment-notes {
+  max-width: 240px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#shipmentsTable td select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.shipment-number--received {
+  background-color: #287a3d;
+  color: #fff;
+  font-weight: 700;
+}
+
+.shipment-number--overdue {
+  background-color: #c47b18;
+  color: #fff;
+  font-weight: 700;
+}
+
+.shipment-number--critical {
+  background-color: #b83232;
+  color: #fff;
+  font-weight: 700;
+}
+
+/* --- Przyciski w komórkach i podpowiedzi --- */
+td button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  margin-right: 6px;
+  color: #f1f1f1;
+  transition: transform 0.2s;
+}
+
+#shipmentsTable td:last-child button {
+  margin-left: 4px;
+}
+
+td button:hover {
+  transform: scale(1.2);
+  color: #4da6ff;
+}
+
+td button[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  background: #444;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  top: 100%;
+  left: 0;
+  white-space: nowrap;
+  margin-top: 4px;
+  z-index: 1000;
+}
+
+/* --- Przyciski przewijania strony --- */
+.page-scroll-controls {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.page-scroll-controls button {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 1px solid #70b7ef;
+  border-radius: 6px;
+  background: #2980b9;
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.page-scroll-controls button:hover {
+  background: #2471a3;
+}
+
+.page-scroll-controls button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+

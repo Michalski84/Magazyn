@@ -1,5 +1,7 @@
+// Moduły katalogów: spółki, odbiorcy i lista projektów (formularze, tabele, dodawanie, edycja, usuwanie).
 document.addEventListener("DOMContentLoaded", () => {
   const api = window.shipmentApi.catalogs;
+  // Konfiguracja każdego katalogu: identyfikatory elementów, pola, komunikaty i operacje API.
   const catalogs = {
     companies: {
       module: "companiesModule",
@@ -82,6 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
       form.hidden = true;
     });
 
+    // Rysuje tabelę katalogu; w wierszu przyciski „Edytuj” (wypełnia formularz) i „Usuń” (z potwierdzeniem).
     function render() {
       tbody.replaceChildren();
       entries[key].forEach(record => {
@@ -136,11 +139,13 @@ document.addEventListener("DOMContentLoaded", () => {
     config.render = render;
   });
 
+  // Odświeżanie danych po zalogowaniu i po wejściu w moduł katalogu.
   window.addEventListener("user-signed-in", refresh);
   window.addEventListener("module-selected", event => {
     if (Object.values(catalogs).some(catalog => catalog.module === event.detail)) refresh();
   });
 
+  // Pobiera wszystkie katalogi z API i rysuje ich tabele.
   async function refresh() {
     try {
       const [companies, recipients, projects] = await Promise.all([
@@ -155,6 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Wykonuje akcję i pokazuje błąd jako komunikat zamiast wyjątku.
   async function run(action) {
     try {
       await action();
@@ -163,5 +169,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Udostępnia odświeżanie katalogów innym modułom (np. po zmianie słowników w magazynie).
   window.refreshCatalogData = refresh;
 });

@@ -1,0 +1,95 @@
+/* 08-stock-desktop.css: Tabela stanów magazynowych oraz układ desktopowy formularzy (min-width 769px). */
+
+/* --- Tabela stanów: kolumny i linki wydania --- */
+#stockTable td[data-column-key="quantityOut"] {
+  white-space: nowrap;
+}
+
+#stockTable .issue-link-button {
+  margin: 0;
+  padding: 0 4px;
+  background: none;
+  border: none;
+  color: #6db3f2;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+body[data-theme="light"] #warehouseModule #stockTable .issue-link-button {
+  color: #1f5f8a;
+}
+
+/* --- Media query: układ desktopowy min-width 769px --- */
+@media (min-width: 769px) {
+  form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 14px;
+    padding: 16px;
+  }
+
+  .shipment-type-quantity {
+    grid-column: 1 / -1;
+    gap: 6px 12px;
+  }
+
+  .shipment-type-quantity > label {
+    display: grid;
+    grid-template-columns: minmax(105px, 40%) minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+  }
+
+  .shipment-type-quantity > label select,
+  .shipment-type-quantity > label input {
+    min-width: 0;
+    margin-top: 0;
+  }
+
+  form > label {
+    display: grid;
+    grid-template-columns: minmax(105px, 40%) minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    margin: 0;
+  }
+
+  form > label input,
+  form > label select {
+    min-width: 0;
+    margin-top: 0;
+  }
+
+  #zawartoscContainer {
+    grid-column: 1 / -1;
+    margin-top: 2px;
+  }
+
+  #zawartoscContainer > label {
+    margin: 0;
+  }
+
+  #zawartoscContainer > table {
+    margin: 4px 0;
+  }
+
+  #zawartoscContainer > table th,
+  #zawartoscContainer > table td {
+    padding: 6px;
+  }
+
+  #zawartoscContainer > button {
+    width: auto;
+    margin-top: 0;
+  }
+
+  #submitButton {
+    grid-column: 1 / -1;
+    justify-self: end;
+    width: auto;
+    min-width: 220px;
+    margin-top: 2px;
+  }
+}
+
