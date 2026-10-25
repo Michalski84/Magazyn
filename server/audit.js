@@ -6,7 +6,8 @@ const logger = require("./logger");
 const ENTITY_LABELS = {
   shipments: "Przesyłka",
   catalogs: "Kartoteka",
-  warehouse: "Magazyn"
+  warehouse: "Magazyn",
+  orders: "Zamówienie"
 };
 
 // Zapisuje zdarzenie; błąd zapisu nie przerywa obsługi żądania.
@@ -34,6 +35,7 @@ async function recordAudit(entry) {
 // Middleware: po udanym zapisie (POST/PUT/PATCH/DELETE) dopisuje wpis do dziennika.
 function auditWrites(req, res, next) {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+  if (/^\/api\/admin\/users(?:\/|$)/.test(req.originalUrl.split("?")[0])) return next();
   let body;
   const originalJson = res.json.bind(res);
   res.json = payload => {

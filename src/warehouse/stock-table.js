@@ -16,6 +16,15 @@ function renderStock() {
     Object.entries(columnFilters).every(([key, value]) =>
       !value || String(row[key] ?? "").toLocaleLowerCase("pl-PL").includes(value))
   );
+  const direction = byId("stockSortOrder").value === "oldest-first" ? 1 : -1;
+  rows.sort((a, b) => {
+    const aDate = Date.parse(a.createdAt);
+    const bDate = Date.parse(b.createdAt);
+    if (Number.isFinite(aDate) && Number.isFinite(bDate) && aDate !== bDate) {
+      return (aDate - bDate) * direction;
+    }
+    return String(a.stockEntryId).localeCompare(String(b.stockEntryId), undefined, { numeric: true }) * direction;
+  });
   visibleStock = rows;
   const tbody = byId("stockTable").tBodies[0];
   tbody.replaceChildren();
@@ -139,6 +148,7 @@ function initStockFilters() {
   });
   byId("stockSearch").addEventListener("input", renderStock);
   byId("stockOnlyAvailable").addEventListener("change", renderStock);
+  byId("stockSortOrder").addEventListener("change", renderStock);
   document.querySelectorAll(".stock-column-toggle")
     .forEach(toggle => toggle.addEventListener("change", applyStockColumnVisibility));
   document.querySelectorAll("#stockTable th[data-filter-key]").forEach(th => {

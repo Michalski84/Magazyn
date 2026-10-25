@@ -179,21 +179,39 @@ td button[title]:hover::after {
 }
 
 .page-scroll-controls button {
-  width: 46px;
-  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
   padding: 0;
-  border: 1px solid #70b7ef;
-  border-radius: 6px;
-  background: #2980b9;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  background: rgba(41, 128, 185, 0.85);
   color: #fff;
-  font-size: 24px;
-  line-height: 1;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+  opacity: 0.8;
+  transition: opacity 0.15s, transform 0.15s, background 0.15s;
+}
+
+.page-scroll-controls button svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
 }
 
 .page-scroll-controls button:hover {
   background: #2471a3;
+  opacity: 1;
+  transform: translateY(-2px);
 }
 
 .page-scroll-controls button:focus-visible {

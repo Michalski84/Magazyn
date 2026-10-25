@@ -1,0 +1,12 @@
+.env
+.git
+.gitignore
+node_modules
+*.log
+logs
+data
+backups
+*.dump
+test
+*.md
+start-app.vbs

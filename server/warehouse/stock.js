@@ -110,6 +110,7 @@ async function getStock({ companyId = null, warehouseId = null, search = "" } = 
            i.id AS "itemId", i.code, i.name, i.unit, i.category,
            i.minimum_stock AS "minimumStock",
            s.stock_entry_id AS "stockEntryId",
+           e.created_at AS "createdAt",
            s.order_number AS "orderNumber",
            e.project_number AS "projectNumber",
            e.supplier,
@@ -139,7 +140,7 @@ async function getStock({ companyId = null, warehouseId = null, search = "" } = 
             OR e.project_number ILIKE '%' || $3 || '%'
             OR e.supplier ILIKE '%' || $3 || '%'
             OR e.serial_number ILIKE '%' || $3 || '%')
-     ORDER BY c.name, w.name, i.name, s.order_number, s.stock_entry_id
+     ORDER BY e.created_at DESC, e.id DESC
   `, [companyId || null, warehouseId || null, search.trim()]);
   return result.rows.map(row => ({
     ...row,

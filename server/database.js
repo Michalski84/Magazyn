@@ -2,10 +2,27 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const { Pool } = require("pg");
 
-if (!process.env.DATABASE_URL) throw new Error("Brak DATABASE_URL w konfiguracji.");
+const databaseConfig = process.env.DATABASE_URL
+  ? { connectionString: process.env.DATABASE_URL }
+  : {
+      host: process.env.PGHOST,
+      port: Number(process.env.PGPORT || 5432),
+      database: process.env.PGDATABASE,
+      user: process.env.PGUSER,
+      password: process.env.PGPASSWORD
+    };
+
+if (!process.env.DATABASE_URL && (
+  !databaseConfig.host
+  || !databaseConfig.database
+  || !databaseConfig.user
+  || !databaseConfig.password
+)) {
+  throw new Error("Ustaw DATABASE_URL albo komplet zmiennych PGHOST, PGDATABASE, PGUSER i PGPASSWORD.");
+}
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  ...databaseConfig,
   max: Number(process.env.DB_POOL_SIZE || 10),
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000

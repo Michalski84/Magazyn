@@ -35,7 +35,7 @@ test.before(() => {
     state.companies = [{id:1,name:"Alfa",active:true},{id:2,name:"Beta",active:true},{id:3,name:"Gamma",active:true}];
     state.warehouses = [{id:10,name:"Główny",type:"main",active:true,companyId:null},{id:11,name:"Mag B",type:"x",active:true,companyId:2}];
     state.recipients = [{id:5,name:"Odb"},{id:6,name:"Inny"}];
-    const mk = (id,c,cn,wh,whn,qty) => ({stockEntryId:id,companyId:c,companyName:cn,warehouseId:wh,warehouseName:whn,name:"T"+id,unit:"szt",quantityIn:qty,quantityOut:0,quantityOnHand:qty,issues:[],serialNumber:"SN"+id,projectNumber:"",orderNumber:"",supplier:""});
+    const mk = (id,c,cn,wh,whn,qty) => ({stockEntryId:id,createdAt:new Date(Date.UTC(2026,0,7-id)).toISOString(),companyId:c,companyName:cn,warehouseId:wh,warehouseName:whn,name:"T"+id,unit:"szt",quantityIn:qty,quantityOut:0,quantityOnHand:qty,issues:[],serialNumber:"SN"+id,projectNumber:"",orderNumber:"",supplier:""});
     state.stock = [mk(1,2,"Beta",10,"Główny",3),mk(2,2,"Beta",10,"Główny",4),mk(3,1,"Alfa",10,"Główny",5),mk(4,3,"Gamma",10,"Główny",0),mk(5,2,"Beta",11,"Mag B",2),mk(6,2,"Beta",10,"Główny",1)];
     populateCompanyControls(); populateWarehouseControls(); populateIssueRecipients(); populateIssueFilterRecipients();
     renderStock();
@@ -43,10 +43,69 @@ test.before(() => {
   run("showToast = (message) => { globalThis.__toast = message; }");
 });
 
+test("formularz logowania nie wysyła danych metodą GET", () => {
+  assert.equal(byId("loginForm").method, "post");
+  assert.equal(byId("loginForm").action, "http://localhost:3000/api/auth/login");
+});
+
+test("zamówienia domyślnie używają PLN i pokazują poprawną wartość bez NaN", async () => {
+  assert.equal(byId("orderForm").elements.currency.value, "PLN");
+  ctx.__ordersTestApi = {
+    list: async () => [
+      {
+        id: "1", orderNumber: "ZAM-1", orderDate: "2026-10-01", supplier: "Dostawca",
+        companyName: "Maxto ITS", itemName: "Towar", quantity: 1, currency: "PLN",
+        orderValue: 123.45, orderValuePln: 123.45, status: "zlozone"
+      },
+      {
+        id: "2", orderNumber: "ZAM-2", orderDate: "2026-10-02", supplier: "Dostawca",
+        companyName: "Maxto ITS", itemName: "Towar", quantity: 1, status: "zlozone"
+      }
+    ]
+  };
+  run(`
+    Object.assign(window.shipmentApi.orders, globalThis.__ordersTestApi);
+    window.shipmentApi.catalogs.companies = async () => [];
+    window.shipmentApi.catalogs.projects = async () => [];
+  `);
+  w.document.body.dataset.role = "viewer";
+  w.dispatchEvent(new w.CustomEvent("module-selected", { detail: "ordersModule" }));
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  const amountCells = [...byId("ordersTable").tBodies[0].rows].map(row => row.cells[4].textContent);
+  assert.deepEqual(amountCells, ["123,45 zł", "— zł"]);
+  assert.ok(amountCells.every(value => !value.includes("NaN")));
+});
+
 test("filtr spółek jest posortowany wg liczby pozycji", () => {
   const options = [...byId("warehouseCompanyFilter").options].map(o => o.text).join("|");
   assert.equal(options, "Wszystkie spółki|Beta (4)|Alfa (1)|Gamma (0)");
   assert.equal([...byId("stockCompanyColumnFilter").options].map(o => o.text).join("|"), options);
+});
+
+test("formularz rejestracji domyślnie ukrywa hasła i pozwala je ujawnić", () => {
+  byId("showRegisterButton").click();
+  assert.equal(byId("registerModal").style.display, "flex");
+  assert.equal(byId("hideRegisterPassword").checked, true);
+  assert.equal(byId("registerPassword").type, "password");
+
+  byId("hideRegisterPassword").click();
+  assert.equal(byId("registerPassword").type, "text");
+  assert.equal(byId("registerPasswordConfirmation").type, "text");
+  byId("registerCancelButton").click();
+  assert.equal(byId("registerModal").style.display, "none");
+});
+
+test("towary są domyślnie sortowane od najnowszych i można odwrócić kolejność", () => {
+  const names = () => rows().map(row => row.cells[4].textContent);
+  assert.deepEqual(names(), ["T1", "T2", "T3", "T4", "T5", "T6"]);
+
+  byId("stockSortOrder").value = "oldest-first";
+  byId("stockSortOrder").dispatchEvent(new w.Event("change"));
+  assert.deepEqual(names(), ["T6", "T5", "T4", "T3", "T2", "T1"]);
+
+  byId("stockSortOrder").value = "newest-first";
+  byId("stockSortOrder").dispatchEvent(new w.Event("change"));
 });
 
 test("zaznaczanie pozycji i blokada mieszanych spółek", () => {

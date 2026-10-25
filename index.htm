@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rejestr Przesyłek</title>
+  <title>Rejestr Logistyki</title>
   <link rel="stylesheet" href="src/styles/01-base-layout.css">
   <link rel="stylesheet" href="src/styles/02-warehouse.css">
   <link rel="stylesheet" href="src/styles/03-components-misc.css">
@@ -18,8 +18,8 @@
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-labelledby="loginTitle">
-    <form id="loginForm" class="login-form">
-      <h1 id="loginTitle">Rejestr przesyłek</h1>
+    <form id="loginForm" class="login-form" method="post" action="/api/auth/login">
+      <h1 id="loginTitle">Rejestr Logistyki</h1>
       <p>Zaloguj się, aby otworzyć wspólną listę przesyłek.</p>
       <label for="loginUsername">Użytkownik</label>
       <input id="loginUsername" name="username" type="text" autocomplete="username" maxlength="80" required>
@@ -27,6 +27,7 @@
       <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
       <p id="loginError" class="error-message" role="alert" hidden></p>
       <button type="submit">Zaloguj</button>
+      <button type="button" id="showRegisterButton">Utwórz konto</button>
     </form>
   </section>
 
@@ -34,17 +35,19 @@
   <p id="appError" class="app-error" role="alert" hidden></p>
   <header class="app-header">
     <button type="button" id="themeToggleButton" aria-pressed="false">Tryb jasny</button>
-    <h1>Rejestr przesyłek przychodzących</h1>
+    <h1>Rejestr Logistyki</h1>
     <div class="header-actions">
       <span>Zalogowany: <strong id="currentUserName"></strong></span>
       <button type="button" id="logoutButton">Wyloguj</button>
       <button type="button" id="refreshAppButton" title="Odśwież listę przesyłek">↻ Odśwież</button>
+      <button type="button" id="manageAccountsButton" class="admin-only">Zarządzaj kontami</button>
     </div>
   </header>
 
   <nav class="module-tabs" aria-label="Moduły aplikacji">
     <button type="button" class="module-tab is-active" data-module="shipmentsModule" aria-selected="true">Przesyłki</button>
     <button type="button" class="module-tab" data-module="warehouseModule" aria-selected="false">Magazyn</button>
+    <button type="button" class="module-tab" data-module="ordersModule" aria-selected="false">Zamówienia</button>
     <button type="button" class="module-tab" data-module="companiesModule" aria-selected="false">Spółki</button>
     <button type="button" class="module-tab" data-module="recipientsModule" aria-selected="false">Odbiorcy</button>
     <button type="button" class="module-tab" data-module="projectsModule" aria-selected="false">Lista projektów</button>
@@ -469,6 +472,12 @@
       <label for="stockSearch">Szukaj towaru
         <input id="stockSearch" type="search" placeholder="Nazwa lub kod">
       </label>
+      <label for="stockSortOrder">Sortowanie towarów
+        <select id="stockSortOrder">
+          <option value="newest-first">Od najnowszych do najstarszych</option>
+          <option value="oldest-first">Od najstarszych do najnowszych</option>
+        </select>
+      </label>
       <button type="button" id="exportStockButton">Eksportuj Excel</button>
       <button type="button" id="exportStockViewButton">Eksportuj widok tabeli</button>
       <button type="button" id="refreshWarehouseButton">Odśwież</button>
@@ -572,6 +581,93 @@
     </details>
   </section>
 
+  <section id="ordersModule" class="app-module" hidden>
+    <div class="warehouse-heading">
+      <div><h2>Zamówienia</h2><p id="ordersScopeInfo">Widzisz tylko zamówienia utworzone przez siebie.</p></div>
+    </div>
+    <div class="order-workspace">
+    <form id="orderForm" class="order-form">
+      <h3 id="orderFormTitle">Nowe zamówienie</h3>
+      <input type="hidden" name="id">
+      <label>Numer zamówienia: <input name="orderNumber" maxlength="100" required></label>
+      <label>Dostawca: <input name="supplier" maxlength="500" required></label>
+      <label>Spółka:
+        <select name="companyId" required><option value="">Wybierz spółkę</option></select>
+      </label>
+      <label>Adres dostawy: <input name="deliveryAddress" maxlength="1000" required></label>
+      <label>Numer projektu: <input name="projectNumber" maxlength="100"></label>
+      <label>Numer EOD/Salesforce: <input name="eodSalesforceNumber" maxlength="100"></label>
+      <label>Data utworzenia: <input name="orderDate" type="date" required></label>
+      <label>Wartość zamówienia: <input name="orderValue" type="number" min="0" step="0.01" required></label>
+      <label>Waluta:
+        <select name="currency" required>
+          <option value="PLN" selected>zł (PLN)</option>
+          <option value="EUR">EUR</option>
+          <option value="USD">USD</option>
+        </select>
+      </label>
+      <label id="orderExchangeRateField" hidden>Kurs waluty (PLN za 1 jednostkę):
+        <input name="exchangeRate" type="number" min="0.000001" step="0.000001">
+      </label>
+      <div id="orderItemsContainer" class="order-items-container">
+        <label>Towary:</label>
+        <table>
+          <thead><tr><th>Nazwa</th><th>Ilość</th><th>Jednostka</th><th>Usuń</th></tr></thead>
+          <tbody id="orderItemsFields"></tbody>
+        </table>
+        <button type="button" id="addOrderItemButton">Dodaj towar</button>
+      </div>
+      <div class="order-form-actions">
+        <button type="submit" id="orderSubmitButton">Dodaj zamówienie</button>
+        <button type="button" id="orderCancelButton" hidden>Anuluj edycję</button>
+      </div>
+    </form>
+    <section class="order-search-panel" aria-label="Wyszukiwanie zamówień">
+      <h3>Wyszukiwanie</h3>
+      <label class="order-search-wide">Szukaj we wszystkich danych
+        <input id="orderSearchInput" type="search" autocomplete="off" placeholder="Numer, dostawca, towar, adres...">
+      </label>
+      <label>Numer zamówienia
+        <input id="orderNumberFilter" type="search" autocomplete="off">
+      </label>
+      <label>Numer EOD/Salesforce
+        <input id="orderEodFilter" type="search" autocomplete="off">
+      </label>
+      <label>Dostawca
+        <input id="orderSupplierFilter" type="search" autocomplete="off">
+      </label>
+      <label>Numer projektu
+        <input id="orderProjectFilter" type="search" autocomplete="off">
+      </label>
+      <label class="order-search-wide">Towar
+        <input id="orderItemFilter" type="search" autocomplete="off">
+      </label>
+      <label>Data od
+        <input id="orderDateFromFilter" type="date">
+      </label>
+      <label>Data do
+        <input id="orderDateToFilter" type="date">
+      </label>
+      <label>Status
+        <select id="orderStatusFilter">
+          <option value="">Wszystkie</option>
+          <option value="zlozone">Złożone</option>
+          <option value="potwierdzone">Potwierdzone</option>
+          <option value="zrealizowane">Zrealizowane</option>
+          <option value="anulowane">Anulowane</option>
+        </select>
+      </label>
+      <label class="order-flag-filter"><input id="orderFlaggedFilter" type="checkbox"> Tylko oflagowane</label>
+      <button type="button" id="orderResetFiltersButton">Resetuj filtry</button>
+    </section>
+    </div>
+    <nav id="orderCompanyTabs" class="order-company-tabs" aria-label="Spółki"></nav>
+    <div class="warehouse-table-wrap"><table id="ordersTable">
+      <thead><tr><th>LP</th><th>Nr zam.</th><th>Dostawca</th><th>Nazwa towaru</th><th>Wartość</th><th>Adres dostawy</th><th>Numer projektu</th><th>Numer EOD/Salesforce</th><th>Data</th><th class="admin-only">Utworzył</th><th>Status</th><th>Akcja</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
   <section id="companiesModule" class="app-module catalog-module" hidden>
     <div class="warehouse-heading">
       <div><h2>Spółki</h2><p>Adresy spółek grupy Maxto, wykorzystywane jako dane sprzedawcy w dokumentach WZ.</p></div>
@@ -667,8 +763,8 @@
   </section>
 
 <div class="page-scroll-controls" aria-label="Przewijanie strony">
-  <button type="button" id="scrollToTop" aria-label="Przewiń na początek strony" title="Początek strony">↑</button>
-  <button type="button" id="scrollToBottom" aria-label="Przewiń na koniec strony" title="Koniec strony">↓</button>
+  <button type="button" id="scrollToTop" aria-label="Przewiń na początek strony"   title="Początek strony"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>
+    <button type="button" id="scrollToBottom" aria-label="Przewiń na koniec strony" title="Koniec strony"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
 </div>
 
   <div id="signatureModal">
@@ -696,12 +792,68 @@
     </div>
   </section>
 </div>
+<div id="orderNotesModal" class="notes-modal" role="dialog" aria-modal="true" aria-labelledby="orderNotesTitle" aria-hidden="true">
+  <section class="notes-dialog">
+    <header class="notes-dialog-header">
+      <h2 id="orderNotesTitle">Notatki do zamówienia</h2>
+      <button type="button" id="orderNotesCloseButton" class="notes-close-button" aria-label="Zamknij notatki" title="Zamknij">×</button>
+    </header>
+    <label for="orderNotesTextarea">Treść notatki</label>
+    <textarea id="orderNotesTextarea" rows="8" maxlength="5000"></textarea>
+    <div class="notes-actions">
+      <button type="button" id="orderNotesSaveButton">Zapisz</button>
+      <button type="button" id="orderNotesDeleteButton">Usuń</button>
+    </div>
+  </section>
+</div>
   <footer class="app-footer">
     <small>© 2026 Ami-Bricks Andrzej Michalski. Wszelkie prawa zastrzeżone</small>
   </footer>
   </div>
 
 <div id="toastNotification" class="toast-notification" role="status" aria-live="polite" hidden></div>
+
+<div id="registerModal" class="notes-modal" role="dialog" aria-modal="true" aria-labelledby="registerModalTitle" aria-hidden="true">
+  <section class="notes-dialog account-dialog">
+    <header class="notes-dialog-header">
+      <h2 id="registerModalTitle">Utwórz konto</h2>
+      <button type="button" id="registerCloseButton" class="notes-close-button" aria-label="Zamknij" title="Zamknij">×</button>
+    </header>
+    <form id="registerForm">
+      <label for="registerUsername">Nazwa użytkownika</label>
+      <input id="registerUsername" name="username" type="text" minlength="2" maxlength="80" autocomplete="username" required>
+      <label for="registerPassword">Hasło</label>
+      <input id="registerPassword" name="password" type="password" minlength="12" maxlength="72" autocomplete="new-password" required>
+      <label for="registerPasswordConfirmation">Powtórz hasło</label>
+      <input id="registerPasswordConfirmation" name="passwordConfirmation" type="password" minlength="12" maxlength="72" autocomplete="new-password" required>
+      <label class="account-checkbox" for="hideRegisterPassword">
+        <input id="hideRegisterPassword" type="checkbox" checked> Ukryj hasło
+      </label>
+      <p id="registerStatus" class="account-status" role="status" aria-live="polite" hidden></p>
+      <div class="notes-actions">
+        <button type="submit" id="registerSubmitButton">Utwórz konto</button>
+        <button type="button" id="registerCancelButton">Anuluj</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div id="accountsModal" class="notes-modal" role="dialog" aria-modal="true" aria-labelledby="accountsModalTitle" aria-hidden="true">
+  <section class="notes-dialog account-dialog account-dialog--wide">
+    <header class="notes-dialog-header">
+      <h2 id="accountsModalTitle">Zarządzaj kontami</h2>
+      <button type="button" id="accountsCloseButton" class="notes-close-button" aria-label="Zamknij" title="Zamknij">×</button>
+    </header>
+    <p>Nowe konta są nieaktywne do czasu zatwierdzenia. „Administrator” ma pełne uprawnienia, „Magazyn” umożliwia pracę w magazynie i przesyłkach, a „Podgląd” tylko odczyt.</p>
+    <p id="accountsStatus" class="account-status" role="status" aria-live="polite" hidden></p>
+    <div class="account-table-wrap">
+      <table id="accountsTable">
+        <thead><tr><th>Użytkownik</th><th>Utworzono</th><th>Uprawnienia</th><th>Aktywne</th><th>Akcja</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="src/shared/api.js"></script>
@@ -722,6 +874,7 @@
 <script src="src/warehouse/helpers.js"></script>
 <script src="src/warehouse/tabs.js"></script>
 <script src="src/admin/audit.js"></script>
+<script src="src/admin/accounts.js"></script>
 <script src="src/warehouse/data.js"></script>
 <script src="src/warehouse/controls.js"></script>
 <script src="src/warehouse/warehouses.js"></script>
@@ -738,5 +891,6 @@
 <script src="src/warehouse/receiving.js"></script>
 <script src="src/warehouse/main.js"></script>
 <script src="src/catalogs/catalogs.js"></script>
+<script src="src/orders/orders.js"></script>
 </body>
 </html>

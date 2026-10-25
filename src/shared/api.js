@@ -29,12 +29,24 @@ async function apiRequest(path, options = {}) {
 
 window.shipmentApi = {
   session: () => apiRequest("/auth/session"),
+  register: (username, password, passwordConfirmation) => apiRequest("/auth/register", {
+    method: "POST",
+    body: { username, password, passwordConfirmation }
+  }),
   login: (username, password) => apiRequest("/auth/login", {
     method: "POST",
     body: { username, password }
   }),
   logout: () => apiRequest("/auth/logout", { method: "POST" }),
   audit: (params = {}) => apiRequest(`/admin/audit?${new URLSearchParams(params)}`),
+  admin: {
+    users: () => apiRequest("/admin/users"),
+    updateUser: (id, user) => apiRequest(`/admin/users/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: user
+    }),
+    deleteUser: id => apiRequest(`/admin/users/${encodeURIComponent(id)}`, { method: "DELETE" })
+  },
   list: () => apiRequest("/shipments"),
   create: shipment => apiRequest("/shipments", { method: "POST", body: shipment }),
   update: (id, shipment) => apiRequest(`/shipments/${id}`, { method: "PUT", body: shipment }),
@@ -72,6 +84,12 @@ window.shipmentApi = {
     deleteCompany: id => apiRequest(`/catalogs/companies/${id}`, { method: "DELETE" }),
     deleteRecipient: id => apiRequest(`/catalogs/recipients/${id}`, { method: "DELETE" }),
     deleteProject: id => apiRequest(`/catalogs/projects/${id}`, { method: "DELETE" })
+  },
+  orders: {
+    list: () => apiRequest("/orders"),
+    create: order => apiRequest("/orders", { method: "POST", body: order }),
+    update: (id, order) => apiRequest(`/orders/${id}`, { method: "PUT", body: order }),
+    patch: (id, patch) => apiRequest(`/orders/${id}`, { method: "PATCH", body: patch })
   },
   warehouse: {
     companies: () => apiRequest("/warehouse/companies"),

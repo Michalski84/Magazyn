@@ -202,6 +202,90 @@
 .issue-filters label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
 .issue-filter-count { margin-left: auto; opacity: 0.8; }
 
+/* --- Rejestracja i zarządzanie kontami --- */
+.account-dialog {
+  width: min(560px, 100%);
+}
+
+.account-dialog--wide {
+  width: min(1000px, 100%);
+}
+
+.account-dialog form label {
+  display: block;
+  margin: 12px 0 6px;
+  color: #ddd;
+  font-weight: 600;
+}
+
+.account-dialog form input:not([type="checkbox"]) {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #777;
+  border-radius: 4px;
+  background: #fff;
+  color: #222;
+  font: inherit;
+}
+
+.account-dialog form .account-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-dialog .notes-actions button {
+  width: auto;
+}
+
+.account-status {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #245c35;
+  color: #fff;
+}
+
+.account-status--error {
+  background: #702c32;
+}
+
+.account-table-wrap {
+  overflow-x: auto;
+}
+
+#accountsTable {
+  min-width: 680px;
+}
+
+#accountsTable td,
+#accountsTable th {
+  padding: 8px;
+  text-align: left;
+}
+
+#accountsTable td:last-child {
+  white-space: nowrap;
+}
+
+#accountsTable td:last-child button {
+  width: auto;
+  margin: 2px;
+}
+
+#accountsTable .account-delete-button {
+  background: #a43a32;
+}
+
+body[data-theme="light"] .account-dialog form label {
+  color: #424650;
+}
+
+body[data-theme="light"] .account-dialog {
+  background: #e4e2da;
+  border-color: #cbc8bd;
+}
+
 /* --- Role: ukrywanie elementów tylko dla administratora i kontrolek zapisu dla roli „viewer” --- */
 body:not([data-role="admin"]) .admin-only {
   display: none !important;
@@ -214,4 +298,274 @@ body[data-role="viewer"] #addZawartoscButton,
 body[data-role="viewer"] #importExcelButton,
 body[data-role="warehouse"] .catalog-add-button {
   display: none !important;
+}
+
+/* --- Zamówienia: formularz 2/3 szerokości, panel wyszukiwania 1/3 --- */
+.order-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 18px;
+}
+
+.order-workspace > #orderForm.order-form {
+  margin: 0;
+}
+
+.order-search-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: space-between;
+  gap: 6px 10px;
+  padding: 14px;
+  border-radius: 10px;
+  background: #2b2b3c;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.order-search-panel h3,
+.order-search-panel .order-search-wide,
+.order-search-panel button {
+  grid-column: 1 / -1;
+}
+
+.order-search-panel h3 {
+  margin: 0;
+}
+
+.order-search-panel label {
+  margin: 0;
+  display: block;
+  font-weight: 600;
+  color: #ddd;
+}
+
+/* Pola formularza w trzech kolumnach, by zmniejszyć jego wysokość */
+#orderForm.order-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 12px;
+  align-content: start;
+}
+
+#orderForm.order-form > h3,
+#orderForm.order-form > .order-items-container,
+#orderForm.order-form > .order-form-actions {
+  grid-column: 1 / -1;
+}
+
+#orderForm.order-form > label {
+  margin-top: 0;
+}
+
+.order-search-panel input[type="search"],
+.order-search-panel input[type="date"],
+.order-search-panel select {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #3a3a4f;
+  color: #f1f1f1;
+}
+
+.order-search-panel .order-flag-filter input {
+  width: auto;
+  margin: 0;
+}
+
+.order-search-panel button {
+  width: auto;
+  margin: 0;
+  justify-self: start;
+}
+
+@media (max-width: 900px) {
+  .order-workspace,
+  #orderForm.order-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --- Zamówienia: oflagowane wiersze na czerwono, anulowane przygaszone --- */
+#ordersTable tr.order-flagged td {
+  background: #7a1f1f;
+  color: #fff;
+}
+
+#ordersTable tr.order-flagged td:first-child {
+  box-shadow: inset 4px 0 0 #ff5252;
+}
+
+#ordersTable tr.order-cancelled td:not(.order-actions) {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+#ordersTable tr.order-cancelled td select {
+  text-decoration: none;
+}
+
+#ordersTable .order-actions {
+  white-space: nowrap;
+}
+
+#ordersTable .order-actions button {
+  width: auto;
+  min-width: 32px;
+  padding: 5px 7px;
+  margin: 0 2px 0 0;
+  font-size: 1rem;
+}
+
+#ordersTable th:nth-child(4),
+#ordersTable td:nth-child(4) {
+  min-width: 240px;
+}
+
+#ordersTable th:nth-child(5),
+#ordersTable td:nth-child(5) {
+  width: 130px;
+  max-width: 130px;
+  font-size: 0.9rem;
+}
+
+#ordersTable th:nth-child(9),
+#ordersTable td:nth-child(9) {
+  white-space: nowrap;
+  min-width: 100px;
+}
+
+#ordersTable .order-items-cell div + div {
+  margin-top: 4px;
+}
+
+/* --- Formularz zamówienia: wygląd jak formularz przesyłki --- */
+#orderForm.order-form {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  margin: 0 auto 18px;
+}
+
+#orderForm h3 {
+  margin: 0 0 4px;
+}
+
+.order-items-container {
+  margin-top: 10px;
+  padding-top: 6px;
+  border-top: 1px dashed #555;
+}
+
+.order-items-container table {
+  table-layout: fixed;
+  margin-top: 10px;
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #444;
+  background-color: #2b2b3c;
+  color: #f1f1f1;
+}
+
+.order-items-container th,
+.order-items-container td {
+  padding: 8px;
+  border: 1px solid #444;
+  text-align: left;
+}
+
+.order-items-container th:nth-child(2) {
+  width: 90px;
+}
+
+.order-items-container th:nth-child(3) {
+  width: 90px;
+}
+
+.order-items-container th:last-child {
+  width: 50px;
+}
+
+.order-items-container .remove-item-button {
+  width: 100%;
+  margin: 0;
+  padding: 4px 6px;
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  font-weight: 700;
+}
+
+.order-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.order-form-actions button {
+  width: auto !important;
+  margin: 4px 0 0;
+  padding: 6px 12px;
+  font-size: 14px;
+  line-height: normal;
+}
+
+#ordersTable .order-actions button.has-note {
+  background: #2e8b4f !important;
+  border-color: #2e8b4f !important;
+}
+
+.order-company-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+  border-bottom: 1px solid #444;
+}
+
+.order-company-tab {
+  margin: 0 0 -1px !important;
+  border: 1px solid #444 !important;
+  border-bottom: 0 !important;
+  border-radius: 8px 8px 0 0 !important;
+  background: #29293a !important;
+}
+
+.order-company-tab.is-active {
+  background: #397a4c !important;
+  border-color: #397a4c !important;
+}
+
+.order-flag-filter {
+  display: flex !important;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0 !important;
+}
+
+body[data-theme="light"] .order-search-panel {
+  background: #fff;
+  color: #222;
+}
+
+body[data-theme="light"] .order-search-panel label {
+  color: #333;
+}
+
+body[data-theme="light"] .order-search-panel input[type="search"],
+body[data-theme="light"] .order-search-panel input[type="date"],
+body[data-theme="light"] .order-search-panel select {
+  background: #fff;
+  color: #222;
+  border-color: #bbb;
+}
+
+body[data-theme="light"] #ordersTable tr.order-flagged td {
+  background: #f8c9c9;
+  color: #5c0f0f;
 }

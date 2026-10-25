@@ -1,4 +1,4 @@
-# Rejestr przesyłek
+# Rejestr Logistyki
 
 Aplikacja webowa dla kilku użytkowników w zaufanej sieci lokalnej. Node.js udostępnia interfejs i API, a PostgreSQL przechowuje wspólne dane. Komputery użytkowników łączą się z serwerem przez przeglądarkę; nie łączą się bezpośrednio z bazą.
 
@@ -7,6 +7,65 @@ Aplikacja webowa dla kilku użytkowników w zaufanej sieci lokalnej. Node.js udo
 - Node.js 20 lub nowszy.
 - PostgreSQL 16 lub nowszy, zainstalowany bezpośrednio w Windows na komputerze serwerowym.
 - Komputer serwerowy ze stałym adresem IP w sieci firmowej.
+
+## Uruchomienie w Dockerze
+
+Docker Compose uruchamia aplikację i PostgreSQL jako osobne kontenery. Dane bazy i logi aplikacji są przechowywane w wolumenach, więc przetrwają odtworzenie kontenera.
+
+1. Zainstaluj Docker Desktop i uruchom go.
+2. Skopiuj `.env.example` do `.env`. Ustaw `POSTGRES_PASSWORD` na silne hasło oraz `SESSION_SECRET` na losowy ciąg co najmniej 32 znaków. Wygenerujesz go w PowerShell:
+
+   ```powershell
+   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+   ```
+
+   W `.env` pozostaw `POSTGRES_DB=magazyn` i `POSTGRES_USER=magazyn_app`, albo ustaw własne wartości. Nie udostępniaj ani nie dodawaj `.env` do repozytorium.
+3. W katalogu projektu zbuduj i uruchom aplikację:
+
+   ```powershell
+   docker compose up --build -d
+   ```
+
+   Docker Compose utworzy bazę, poczeka na jej gotowość, a aplikacja przy pierwszym uruchomieniu wykona migracje. Otwórz `http://localhost:3000`. Port można zmienić przez `APP_PORT` w `.env`.
+4. Jeśli przenosisz dane ze starego pliku `data/storage.json`, zaimportuj je przed utworzeniem kont użytkowników:
+
+   ```powershell
+   docker compose exec app npm run migrate:json
+   ```
+
+   Katalog `data` jest podłączony do kontenera tylko do odczytu; import zapisuje dane do PostgreSQL.
+5. Utwórz pierwsze konto administratora w kontenerze aplikacji:
+
+   ```powershell
+   docker compose exec app npm run create-user -- operator
+   ```
+
+   To konto administratora jest potrzebne do zatwierdzania kolejnych kont. Pozostali użytkownicy mogą wybrać **Utwórz konto** na stronie logowania; nowe konto pozostaje nieaktywne, dopóki administrator nie nada mu roli i go nie aktywuje w **Zarządzaj kontami**. Role: `admin` (pełne uprawnienia), `warehouse` (magazyn i przesyłki, bez zapisu w kartotekach) oraz `viewer` (tylko odczyt). Konta można później edytować lub usuwać z panelu administratora.
+6. Sprawdź stan kontenerów i logi:
+
+   ```powershell
+   docker compose ps
+   docker compose logs -f app
+   ```
+
+   Zatrzymanie: `docker compose down`. Nie używaj `docker compose down -v`, jeśli chcesz zachować dane — ta opcja usuwa również wolumen bazy.
+
+Kopia bazy do pliku na hoście (polecenie `docker compose cp` zachowuje plik SQL bez konwersji kodowania PowerShell):
+
+```powershell
+New-Item -ItemType Directory -Force backups
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > /tmp/magazyn.sql'
+docker compose cp db:/tmp/magazyn.sql backups\magazyn.sql
+```
+
+Odtworzenie kopii do bazy wymaga pustej bazy:
+
+```powershell
+docker compose cp backups\magazyn.sql db:/tmp/magazyn.sql
+docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB" < /tmp/magazyn.sql'
+```
+
+Wdrożenie jest przeznaczone dla zaufanej sieci lokalnej. Nie wystawiaj portu PostgreSQL do sieci ani aplikacji bezpośrednio do Internetu; dla dostępu z zewnątrz skonfiguruj HTTPS przez reverse proxy.
 
 ## Pierwsze uruchomienie
 
@@ -43,7 +102,7 @@ Po weryfikacji serwera można uruchamiać go w tle przez `start-app.vbs`. Na pro
 
 ## Współbieżność i dostęp
 
-Każdy użytkownik ma własne konto i sesję. Zmiany są zapisywane we wspólnej bazie, a lista odświeża się automatycznie co 30 sekund. Zmiany tego samego rekordu są chronione numerem wersji; jeśli inna osoba edytowała go wcześniej, aplikacja odrzuci nieaktualny zapis zamiast po cichu nadpisać cudze dane. Operacje przesyłki i jej pozycji oraz pełny import Excela są transakcyjne.
+Każdy użytkownik ma własne konto i sesję. Administrator nadaje kontom role, aktywuje je, edytuje uprawnienia lub usuwa; nie może usunąć ani zdezaktywować własnego konta. Nieaktywne konta nie mogą się zalogować, a dezaktywacja odbiera dostęp także aktywnym sesjom przy kolejnym żądaniu. Zmiany są zapisywane we wspólnej bazie, a lista odświeża się automatycznie co 30 sekund. Zmiany tego samego rekordu są chronione numerem wersji; jeśli inna osoba edytowała go wcześniej, aplikacja odrzuci nieaktualny zapis zamiast po cichu nadpisać cudze dane. Operacje przesyłki i jej pozycji oraz pełny import Excela są transakcyjne.
 
 Każda przesyłka otrzymuje stały Numer ID w formacie `001/2026`. Licznik rozpoczyna się osobno dla każdego roku daty przyjęcia, a numer nie zmienia się po późniejszej korekcie daty. Numer jest uwzględniany w eksporcie Excel i zachowywany przy ponownym imporcie; starsze arkusze bez tej kolumny otrzymują numery automatycznie.
 
@@ -63,12 +122,16 @@ Ruchy są historią źródłową, a stan wylicza się z ich sumy. Przyjęcia z p
 
 Pliki magazynu są rozdzielone na moduły w `server/warehouse/` (logika operacji i transakcji) oraz `src/warehouse/` (interfejs zakładki), a migracje pozostają w `migrations/`. Logi serwera mają wspólny format czasu, poziomu i kontekstu przez `server/logger.js`; błędy żądań zawierają status, komunikat, a dla błędów serwera także stos. Są wypisywane na konsolę i zapisywane w dziennych plikach `logs/app-RRRR-MM-DD.log`; przy uruchomieniu usuwane są pliki aplikacji starsze niż 30 dni, a pliki logów są wykluczone z repozytorium.
 
+## Moduł Zamówienia
+
+Zakładka **Zamówienia** (po zakładce Magazyn) zawiera formularz dodawania zamówienia (numer, numer EOD/Salesforce, data utworzenia, dostawca, spółka, nazwa towaru, ilość, numer projektu, wartość i waluta, adres dostawy), wyszukiwarkę z filtrem statusu i oflagowania oraz tabelę z numerem LP. Numer zamówienia poprzedza numer EOD/Salesforce; numer projektu pokazuje po najechaniu nazwę skróconą z katalogu projektów. Dostępne spółki to Maxto Technology, Maxto ITS, Maxto Technology Energy, SES i Maxto Consulting. Walutą domyślną jest PLN; wartość w PLN wyświetla się bez przelicznika. Dla EUR i USD podaje się kurs PLN za jednostkę waluty, a tabela pokazuje wartość źródłową i przeliczenie na złote. Status zamówienia to: złożone, potwierdzone, zrealizowane lub anulowane. W kolumnie akcji są ikony **Notatki**, **Edytuj** i **Oflaguj** (oflagowany wiersz jest podświetlony na czerwono). Każdy zalogowany użytkownik, niezależnie od roli, widzi i edytuje wyłącznie zamówienia utworzone przez siebie; administrator widzi wszystkie (z kolumną „Utworzył”). Logika jest w `server/orders.js` i `server/routes/orders.js`, interfejs w `src/orders/orders.js`, a tabele w migracjach `020_orders.sql`, `021_order_currency_and_reference.sql` i `022_order_project_number.sql`.
+
 ## Struktura projektu
 
 - `server.js` – punkt wejścia (migracje, start i zamykanie serwera).
 - `server/app.js` – konfiguracja Express (zabezpieczenia, sesje, montowanie tras, pliki statyczne).
 - `server/http/` – wspólne middleware i konfiguracja HTTP.
-- `server/routes/` – trasy API: `auth`, `shipments`, `catalogs`, `warehouse`.
+- `server/routes/` – trasy API: `auth`, `shipments`, `catalogs`, `warehouse`, `orders`.
 - `server/catalogs/` – słowniki spółek, odbiorców i projektów (`companies`, `recipients`, `projects`, `validation`; `index.js` udostępnia API i usuwanie).
 - `server/warehouse/` – logika magazynu: `warehouses`, `items`, `stock`, `issues` (WZ), `transfers` (MM), `adjustments` (KOR), `receiving` (PZ) oraz wspólne `validation` i `ledger`; `index.js` udostępnia publiczne API.
 - `src/shared/` – klient API i wspólny interfejs (toast, motyw, przewijanie).

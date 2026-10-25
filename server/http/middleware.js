@@ -49,14 +49,21 @@ function requireValidId(value, message = "Nieprawidłowy identyfikator.") {
   }
 }
 
-// Sesje utworzone przed wprowadzeniem ról nie mają roli – dociąga ją z bazy.
-async function ensureRole(req, _res, next) {
+// Odświeża rolę z bazy i odrzuca sesje kont nieaktywnych lub usuniętych.
+async function ensureRole(req, res, next) {
   try {
     const user = req.session.user;
-    if (user && !user.role) {
-      const result = await pool.query("SELECT role FROM app_users WHERE id = $1", [user.id]);
-      user.role = result.rows[0]?.role || "viewer";
+    if (!user) return next();
+    const result = await pool.query("SELECT username, role, active FROM app_users WHERE id = $1", [user.id]);
+    const account = result.rows[0];
+    if (!account?.active) {
+      return req.session.destroy(error => {
+        if (error) return next(error);
+        res.status(401).json({ error: "Konto jest nieaktywne. Skontaktuj się z administratorem." });
+      });
     }
+    user.username = account.username;
+    user.role = account.role;
     next();
   } catch (error) {
     next(error);

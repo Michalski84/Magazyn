@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", function () {
   initSignature();
   initUi();
   initSession();
+  initAccountManagement();
   initNotes();
   initExcel();
   initTable();

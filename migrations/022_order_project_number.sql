@@ -1,0 +1,2 @@
+ALTER TABLE orders
+  ADD COLUMN project_number TEXT NOT NULL DEFAULT '';

@@ -45,15 +45,15 @@ h1 {
 
 .header-actions {
   grid-column: 3;
-  display: grid;
-  grid-template-columns: repeat(2, max-content);
-  justify-content: end;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 8px;
 }
 
 .header-actions > span {
-  grid-column: 1 / -1;
+  flex: 0 0 100%;
   text-align: right;
 }
 
@@ -105,4 +105,3 @@ h1 {
 .app-module > .entry-workspace {
   max-width: none;
 }
-
