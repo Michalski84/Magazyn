@@ -1,7 +1,7 @@
 // Katalog towarów: odczyt i dodawanie towarów wraz z przyjęciem początkowym.
 const { pool } = require("../database");
 const { invalid, requireObject, requiredText, requiredId, optionalText, positiveQuantity } = require("./validation");
-const { lockWarehouses } = require("./ledger");
+const { ensureCompanyWarehouse, lockWarehouses } = require("./ledger");
 
 // Zwraca katalog towarów (opcjonalnie dla jednej spółki).
 async function getItems(companyId = null) {
@@ -57,13 +57,7 @@ async function createItem(input, userId) {
     if (input.warehouseId) {
       warehouseId = requiredId(input.warehouseId, "magazyn");
     } else {
-      const main = await client.query("SELECT id FROM warehouses WHERE warehouse_type = 'main' AND active");
-      if (!main.rowCount) {
-        const error = new Error("Nie znaleziono aktywnego magazynu głównego.");
-        error.status = 409;
-        throw error;
-      }
-      warehouseId = main.rows[0].id;
+      warehouseId = await ensureCompanyWarehouse(client, companyId);
     }
 
     await lockWarehouses(client, [warehouseId]);
@@ -78,7 +72,7 @@ async function createItem(input, userId) {
       throw error;
     }
     const wh = warehouseRes.rows[0];
-    if (wh.warehouse_type !== "main" && String(wh.company_id) !== String(companyId)) {
+    if (String(wh.company_id) !== String(companyId)) {
       const error = new Error("Wybrany magazyn nie należy do wskazanej spółki.");
       error.status = 400;
       throw error;

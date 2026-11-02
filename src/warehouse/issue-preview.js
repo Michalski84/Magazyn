@@ -12,7 +12,7 @@ function previewElement(tag, text, className) {
 function confirmIssuePreview(lines) {
   return new Promise(resolve => {
     const warehouse = byId("issueWarehouse").selectedOptions[0]?.textContent || "";
-    const recipient = byId("issueRecipient").selectedOptions[0]?.textContent || "—";
+    const recipient = byId("issueRecipientText").value.trim().split("\n")[0] || "—";
     const overlay = previewElement("div", undefined, "issue-preview-overlay");
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
@@ -28,7 +28,7 @@ function confirmIssuePreview(lines) {
     ].forEach(([label, value]) => header.append(previewElement("dt", label), previewElement("dd", value)));
     box.append(header);
     box.append(previewElement("pre", byId("issueSellerDetails").textContent, "issue-preview-party"));
-    box.append(previewElement("pre", byId("issueRecipientDetails").textContent, "issue-preview-party"));
+    box.append(previewElement("pre", `Odbiorca:\n${byId("issueRecipientText").value.trim()}`, "issue-preview-party"));
 
     const table = previewElement("table", undefined, "issue-preview-table");
     const head = table.createTHead().insertRow();

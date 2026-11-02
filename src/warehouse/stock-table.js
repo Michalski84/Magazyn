@@ -37,8 +37,8 @@ function renderStock() {
       ["lp", tbody.rows.length + 1], ["companyName", stock.companyName], ["warehouseName", stock.warehouseName], ["name", stock.name],
       ["serialNumber", stock.serialNumber || ""], ["orderNumber", stock.orderNumber],
       ["projectNumber", stock.projectNumber], ["supplier", stock.supplier], ["unit", stock.unit],
-      ["quantityIn", stock.quantityIn], ["quantityOut", stock.quantityOut],
-      ["quantityOnHand", stock.quantityOnHand]
+      ["quantityIn", stock.quantityIn], ["quantityOnHand", stock.quantityOnHand],
+      ["quantityOut", stock.quantityOut]
     ].forEach(([columnKey, value]) => {
       const cell = document.createElement("td");
       cell.dataset.columnKey = columnKey;

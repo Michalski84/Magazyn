@@ -24,11 +24,12 @@ function showSignedIn(user) {
   loginScreen.hidden = true;
   appContent.hidden = false;
   currentUserName.textContent = user.username;
+  document.body.dataset.userId = String(user.id);
   document.body.dataset.role = user.role || "viewer";
   if (user.role !== "admin" && !document.getElementById("auditModule").hidden) switchModule("shipmentsModule");
   loginError.hidden = true;
   loginError.textContent = "";
-  window.dispatchEvent(new Event("user-signed-in"));
+  window.dispatchEvent(new CustomEvent("user-signed-in", { detail: { userId: String(user.id) } }));
 }
 
 // Podłącza obsługę logowania, wylogowania, wygaśnięcia sesji i odświeżania listy.
@@ -76,6 +77,7 @@ function initSession() {
     await window.shipmentApi.logout();
     shipments = [];
     appContent.hidden = true;
+    delete document.body.dataset.userId;
     loginScreen.hidden = false;
     loginForm.reset();
     loginUsername.focus();
@@ -86,6 +88,7 @@ function initSession() {
   window.addEventListener("session-expired", () => {
     shipments = [];
     appContent.hidden = true;
+    delete document.body.dataset.userId;
     loginScreen.hidden = false;
     loginError.textContent = "Sesja wygasła. Zaloguj się ponownie.";
     loginError.hidden = false;

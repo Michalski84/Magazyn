@@ -13,6 +13,26 @@ async function lockWarehouses(client, warehouseIds) {
   }
 }
 
+// Zwraca id aktywnego magazynu spółki o nazwie spółki; tworzy go, jeśli jeszcze nie istnieje.
+async function ensureCompanyWarehouse(client, companyId) {
+  const company = await client.query("SELECT name FROM companies WHERE id = $1", [companyId]);
+  if (!company.rowCount) {
+    const error = new Error("Nie znaleziono spółki.");
+    error.status = 400;
+    throw error;
+  }
+  await client.query(`
+    INSERT INTO warehouses (company_id, name, warehouse_type)
+    VALUES ($1, $2, 'other')
+    ON CONFLICT (company_id, name) WHERE active DO NOTHING
+  `, [companyId, company.rows[0].name]);
+  const warehouse = await client.query(
+    "SELECT id FROM warehouses WHERE company_id = $1 AND name = $2 AND active",
+    [companyId, company.rows[0].name]
+  );
+  return warehouse.rows[0].id;
+}
+
 // Zwraca bieżący stan towaru w magazynie.
 async function stockBalance(client, warehouseId, itemId) {
   const result = await client.query(`
@@ -46,4 +66,4 @@ async function createDocumentNumber(client, table, year, prefix) {
   return `${prefix}/${year}/${result.rows[0].number.padStart(4, "0")}`;
 }
 
-module.exports = { lockWarehouses, stockBalance, stockEntryBalance, createDocumentNumber };
+module.exports = { ensureCompanyWarehouse, lockWarehouses, stockBalance, stockEntryBalance, createDocumentNumber };

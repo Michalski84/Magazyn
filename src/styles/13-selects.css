@@ -1,0 +1,159 @@
+/* Spójny wygląd natywnych pól wyboru w całej aplikacji. */
+select:not([multiple]):not([size]) {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 36px;
+  padding: 7px 34px 7px 10px;
+  border: 1px solid #56566b;
+  border-radius: 8px;
+  background-color: #39394f;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 9px) 50%;
+  background-repeat: no-repeat;
+  background-size: 5px 5px;
+  color: #f1f1f1;
+  color-scheme: dark;
+  font-size: 0.9rem;
+  line-height: 1.25;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+select:not([multiple]):not([size]):hover:not(:disabled):not(:focus) {
+  border-color: #8585a0;
+}
+
+select:not([multiple]):not([size]):focus-visible {
+  border-color: #62aaff;
+  outline: 2px solid rgb(98 170 255 / 28%);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px rgb(98 170 255 / 12%);
+}
+
+select:not([multiple]):not([size]):disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+body[data-theme="light"] select:not([multiple]):not([size]) {
+  border-color: #c2c0b7;
+  background-color: #fff;
+  color: #30323a;
+  color-scheme: light;
+}
+
+body[data-theme="light"] select:not([multiple]):not([size]):hover:not(:disabled):not(:focus) {
+  border-color: #8d929c;
+}
+
+body[data-theme="light"] select:not([multiple]):not([size]):focus-visible {
+  border-color: #2879c7;
+  outline-color: rgb(40 121 199 / 24%);
+  box-shadow: 0 0 0 3px rgb(40 121 199 / 12%);
+}
+
+body[data-theme="light"] option {
+  background: #fff;
+  color: #30323a;
+}
+
+.warehouse-toolbar label[for="stockSearch"] {
+  flex: 1 1 260px;
+}
+
+.warehouse-toolbar #stockSearch,
+#issueRecipient {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  margin-top: 4px;
+  padding: 7px 10px;
+  border: 1px solid #56566b;
+  border-radius: 8px;
+  background: #39394f;
+  color: #f1f1f1;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.25;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.warehouse-toolbar #stockSearch {
+  margin-top: 0;
+  font-size: inherit;
+}
+
+.warehouse-toolbar #stockSearch::placeholder {
+  color: #b6b6c5;
+}
+
+.warehouse-toolbar #stockSearch:focus-visible {
+  border-color: #62aaff;
+  outline: 2px solid rgb(98 170 255 / 28%);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px rgb(98 170 255 / 12%);
+}
+
+body[data-theme="light"] .warehouse-toolbar #stockSearch {
+  border-color: #c2c0b7;
+  background: #fff;
+  color: #30323a;
+}
+
+body[data-theme="light"] .warehouse-toolbar #stockSearch::placeholder {
+  color: #777b83;
+}
+
+body[data-theme="light"] .warehouse-toolbar #stockSearch:focus-visible {
+  border-color: #2879c7;
+  outline-color: rgb(40 121 199 / 24%);
+  box-shadow: 0 0 0 3px rgb(40 121 199 / 12%);
+}
+
+#issueRecipient::placeholder {
+  color: #b6b6c5;
+}
+
+#issueRecipient:focus-visible {
+  border-color: #62aaff;
+  outline: 2px solid rgb(98 170 255 / 28%);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px rgb(98 170 255 / 12%);
+}
+
+/* Czerwony przycisk „x” czyszczenia pola wyszukiwania odbiorcy. */
+#issueRecipient::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  background:
+    linear-gradient(45deg, transparent 43%, #e53935 43% 57%, transparent 57%),
+    linear-gradient(135deg, transparent 43%, #e53935 43% 57%, transparent 57%);
+}
+
+body[data-theme="light"] #issueRecipient {
+  border-color: #c2c0b7;
+  background: #fff;
+  color: #30323a;
+}
+
+body[data-theme="light"] #issueRecipient::placeholder {
+  color: #777b83;
+}
+
+body[data-theme="light"] #issueRecipient:focus-visible {
+  border-color: #2879c7;
+  outline-color: rgb(40 121 199 / 24%);
+  box-shadow: 0 0 0 3px rgb(40 121 199 / 12%);
+}
+
+body[data-theme="light"] #issueRecipient::-webkit-search-cancel-button {
+  background:
+    linear-gradient(45deg, transparent 43%, #d32f2f 43% 57%, transparent 57%),
+    linear-gradient(135deg, transparent 43%, #d32f2f 43% 57%, transparent 57%);
+}

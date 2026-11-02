@@ -6,33 +6,34 @@ function renderWarehouses() {
   tbody.replaceChildren();
   state.warehouses.forEach(warehouse => {
     const row = document.createElement("tr");
-    [warehouse.companyName || "Wszystkie spółki", warehouse.name,
-      warehouse.type === "main" ? "Magazyn główny" : "Magazyn"]
+    [warehouse.companyName || "—", warehouse.name, "Magazyn"]
       .forEach(value => {
         const cell = document.createElement("td");
         cell.textContent = value;
         row.appendChild(cell);
       });
     const actionCell = document.createElement("td");
-    if (warehouse.type === "main") {
-      actionCell.textContent = "Nieusuwalny";
+    const isCompanyWarehouse = warehouse.name === warehouse.companyName;
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.textContent = "Zmień nazwę";
+    editButton.addEventListener("click", () => editWarehouse(warehouse));
+    actionCell.append(editButton);
+    if (isCompanyWarehouse) {
+      actionCell.append(" Magazyn spółki");
     } else {
-      const editButton = document.createElement("button");
-      editButton.type = "button";
-      editButton.textContent = "Zmień nazwę";
-      editButton.addEventListener("click", () => editWarehouse(warehouse));
       const deleteButton = document.createElement("button");
       deleteButton.type = "button";
       deleteButton.textContent = "Usuń";
       deleteButton.addEventListener("click", () => run(async () => {
-        if (!confirm(`Usunąć magazyn „${warehouse.name}”? Pozostały towar zostanie przeniesiony do magazynu głównego.`)) {
+        if (!confirm(`Usunąć magazyn „${warehouse.name}”? Pozostały towar zostanie przeniesiony do magazynu spółki.`)) {
           return;
         }
         const result = await api.deleteWarehouse(warehouse.id);
         await refreshWarehouseData();
-        showToast(`Magazyn usunięty. Przeniesiono ${result.movedEntries} partii do magazynu głównego.`);
+        showToast(`Magazyn usunięty. Przeniesiono ${result.movedEntries} partii do magazynu spółki.`);
       }));
-      actionCell.append(editButton, deleteButton);
+      actionCell.append(deleteButton);
     }
     row.appendChild(actionCell);
     tbody.appendChild(row);

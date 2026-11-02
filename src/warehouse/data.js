@@ -42,6 +42,7 @@ function initWarehouseData() {
   byId("refreshWarehouseButton").addEventListener("click", refreshWarehouseData);
   byId("warehouseCompanyFilter").addEventListener("change", () => {
     byId("movementsTable").dataset.stockEntryId = "";
+    populateWarehouseControls();
     refreshWarehouseData();
   });
 }

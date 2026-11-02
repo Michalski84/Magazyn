@@ -11,7 +11,7 @@ function initShipmentReceiving() {
       form.hidden = true;
       await refreshWarehouseData();
       window.dispatchEvent(new Event("shipment-inventory-received"));
-      showToast("Pozycje ze starszej przesyłki przyjęto na magazyn główny.");
+      showToast("Pozycje ze starszej przesyłki przyjęto na magazyn spółki.");
     });
   });
   window.openShipmentReceiving = shipment => {

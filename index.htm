@@ -15,6 +15,8 @@
   <link rel="stylesheet" href="src/styles/09-shipments-search.css">
   <link rel="stylesheet" href="src/styles/10-modals.css">
   <link rel="stylesheet" href="src/styles/11-responsive-screens.css">
+  <link rel="stylesheet" href="src/styles/12-notes-board.css">
+  <link rel="stylesheet" href="src/styles/13-selects.css">
 </head>
 <body>
   <section id="loginScreen" class="login-screen" aria-labelledby="loginTitle">
@@ -51,6 +53,7 @@
     <button type="button" class="module-tab" data-module="companiesModule" aria-selected="false">Spółki</button>
     <button type="button" class="module-tab" data-module="recipientsModule" aria-selected="false">Odbiorcy</button>
     <button type="button" class="module-tab" data-module="projectsModule" aria-selected="false">Lista projektów</button>
+    <button type="button" class="module-tab" data-module="notesBoardModule" aria-selected="false">Tablica notatek</button>
     <button type="button" class="module-tab admin-only" data-module="auditModule" aria-selected="false">Dziennik zmian</button>
   </nav>
 
@@ -75,7 +78,12 @@
         <input type="number" id="iloscPrzesylek" min="1" max="2147483647" step="1" value="1" required>
       </label>
     </div>
-    <label>Numer zamówienia: <input type="text" id="zamowienie"></label>
+    <div class="order-lookup">
+      <label for="zamowienie">Numer zamówienia:
+        <input type="text" id="zamowienie" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="orderSuggestions">
+      </label>
+      <div id="orderSuggestions" class="order-suggestions" role="listbox" aria-label="Zamówienia z bieżącego roku" hidden></div>
+    </div>
     <label>Numer projektu: <input type="text" id="projekt"></label>
     <label for="nazwaSpolkiSelect">Nazwa Spółki:
       <select id="nazwaSpolkiSelect" required>
@@ -98,8 +106,8 @@
     </label>
     <label for="shipmentWarehouseSelect">Magazyn docelowy:
       <select id="shipmentWarehouseSelect">
-        <option value="main">Przyjmij na magazyn główny</option>
-        <option value="none">Nie przyjmuj na magazyn</option>
+        <option value="receive">Przyjmij towar na magazyn</option>
+        <option value="none">Nie przyjmuj towaru na magazyn</option>
       </select>
     </label>
 
@@ -269,7 +277,6 @@
     <div class="warehouse-heading">
       <div>
         <h2>Magazyn</h2>
-        <p>Stany wynikają z historii przyjęć, wydań, korekt i przesunięć.</p>
       </div>
       <div class="warehouse-actions">
         <button type="button" id="showWarehouseFormButton">Utwórz magazyn</button>
@@ -282,12 +289,14 @@
     <form id="warehouseCreateForm" class="warehouse-form" hidden>
       <h3 id="warehouseFormTitle">Nowy magazyn</h3>
       <input id="warehouseEditId" type="hidden">
-      <label for="newWarehouseCompany">Spółka
-        <select id="newWarehouseCompany" required></select>
-      </label>
-      <label for="newWarehouseName">Nazwa magazynu
-        <input id="newWarehouseName" maxlength="500" required>
-      </label>
+      <div class="warehouse-name-row">
+        <label for="newWarehouseCompany">Spółka
+          <select id="newWarehouseCompany" required></select>
+        </label>
+        <label for="newWarehouseName">Nazwa magazynu
+          <input id="newWarehouseName" maxlength="500" required>
+        </label>
+      </div>
       <div class="warehouse-form-actions">
         <button type="submit" id="saveWarehouseButton">Utwórz magazyn</button>
         <button type="button" data-close-warehouse-form>Anuluj</button>
@@ -295,7 +304,7 @@
     </form>
 
     <form id="shipmentReceiveForm" class="warehouse-form" hidden>
-      <h3>Przyjęcie istniejącej przesyłki na magazyn główny</h3>
+      <h3>Przyjęcie istniejącej przesyłki na magazyn spółki</h3>
       <input id="receivingShipmentId" type="hidden">
       <label for="receivingShipmentNumber">Numer przesyłki
         <input id="receivingShipmentNumber" readonly>
@@ -327,6 +336,7 @@
           <option value="szt." selected>szt.</option>
           <option value="opk.">opk.</option>
           <option value="mb">mb</option>
+          <option value="km">km</option>
           <option value="kpl.">kpl.</option>
         </select>
       </label>
@@ -357,10 +367,12 @@
         <label for="issueWarehouse">Magazyn
           <select id="issueWarehouse" required></select>
         </label>
-        <label for="issueRecipient">Odbiorca
-          <select id="issueRecipient" required>
-            <option value="">Wybierz odbiorcę</option>
-          </select>
+        <label for="issueRecipient">Zapisany odbiorca
+          <input id="issueRecipient" type="search" list="issueRecipientList" autocomplete="off" placeholder="Wybierz z listy lub wyszukaj (opcjonalnie)">
+          <datalist id="issueRecipientList"></datalist>
+        </label>
+        <label for="issueRecipientText" class="issue-recipient-field">Odbiorca (nazwa i adres)
+          <textarea id="issueRecipientText" rows="6" maxlength="2000" required placeholder="Nazwa odbiorcy&#10;Ulica i numer&#10;Kod pocztowy i miasto&#10;..."></textarea>
         </label>
       </div>
       <div class="warehouse-line-list" id="issueLines"></div>
@@ -385,7 +397,6 @@
           <input id="issueReceivingPerson" maxlength="500">
         </label>
         <p class="issue-party-details" id="issueSellerDetails"></p>
-        <p class="issue-party-details" id="issueRecipientDetails"></p>
       </div>
       <div class="warehouse-form-actions">
         <button type="submit" id="issueSubmitButton">Zatwierdź WZ i wydaj towar</button>
@@ -414,7 +425,7 @@
         <button type="submit">Zatwierdź MM i przesuń towar</button>
         <button type="button" data-close-warehouse-form>Zamknij</button>
       </div>
-      <p class="warehouse-warning">Towar można przesunąć do magazynu głównego lub magazynu tej samej spółki. Operacja zapisuje się w historii ruchów.</p>
+      <p class="warehouse-warning">Towar można przesunąć tylko do innego magazynu tej samej spółki. Operacja zapisuje się w historii ruchów.</p>
     </form>
 
     <form id="stockEditForm" class="warehouse-form" hidden>
@@ -431,6 +442,7 @@
           <option value="szt.">szt.</option>
           <option value="opk.">opk.</option>
           <option value="mb">mb</option>
+          <option value="km">km</option>
           <option value="kpl.">kpl.</option>
         </select>
       </label>
@@ -497,8 +509,8 @@
         <label><input type="checkbox" class="stock-column-toggle" data-column-key="supplier" checked> Dostawca</label>
         <label><input type="checkbox" class="stock-column-toggle" data-column-key="unit" checked> Jednostka</label>
         <label><input type="checkbox" class="stock-column-toggle" data-column-key="quantityIn" checked> Przyjęte</label>
-        <label><input type="checkbox" class="stock-column-toggle" data-column-key="quantityOut" checked> Wydane</label>
         <label><input type="checkbox" class="stock-column-toggle" data-column-key="quantityOnHand" checked> Na stanie</label>
+        <label><input type="checkbox" class="stock-column-toggle" data-column-key="quantityOut" checked> Wydane</label>
         <label><input type="checkbox" class="stock-column-toggle" data-column-key="actions" checked> Akcja</label>
         <label><input type="checkbox" id="stockOnlyAvailable"> Pokaż tylko dostępne towary</label>
       </div>
@@ -526,8 +538,8 @@
           <th data-column-key="supplier" data-filter-key="supplier">Dostawca</th>
           <th data-column-key="unit">Jednostka</th>
           <th data-column-key="quantityIn">Przyjęte</th>
-          <th data-column-key="quantityOut">Wydane</th>
           <th data-column-key="quantityOnHand">Na stanie</th>
+          <th data-column-key="quantityOut">Wydane</th>
           <th data-column-key="actions">Akcja</th>
         </tr></thead>
         <tbody></tbody>
@@ -762,6 +774,39 @@
     </table></div>
   </section>
 
+  <section id="notesBoardModule" class="app-module notes-board" hidden>
+    <div class="notes-board-heading">
+      <div>
+        <h2>Tablica notatek</h2>
+        <p>Dane i obrazy są zapisywane lokalnie w tej przeglądarce dla bieżącego konta.</p>
+      </div>
+      <div class="notes-board-actions">
+        <button type="button" id="notesBoardAddButton">Nowa karteczka</button>
+        <button type="button" id="notesBoardExportButton">Eksportuj kopię</button>
+        <button type="button" id="notesBoardImportButton">Importuj kopię</button>
+        <input type="file" id="notesBoardImportFile" accept="application/json,.json" hidden>
+      </div>
+    </div>
+    <p class="notes-board-local-warning">Tablica nie synchronizuje się między urządzeniami. Dane i obrazy są zapisywane lokalnie w tej przeglądarce dla bieżącego konta.</p>
+    <div class="notes-board-filters" aria-label="Wyszukiwanie i filtrowanie karteczek">
+      <label>Szukaj<input type="search" id="notesBoardSearch" placeholder="Treść karteczki" autocomplete="off"></label>
+      <label>Kolor
+        <select id="notesBoardColorFilter">
+          <option value="">Wszystkie kolory</option>
+          <option value="yellow">Żółty</option><option value="blue">Niebieski</option>
+          <option value="green">Zielony</option><option value="pink">Różowy</option>
+          <option value="purple">Fioletowy</option>
+        </select>
+      </label>
+      <label>Ważność
+        <select id="notesBoardImportantFilter"><option value="">Wszystkie</option><option value="yes">Ważne</option><option value="no">Zwykłe</option></select>
+      </label>
+    </div>
+    <div id="notesBoardCanvas" class="notes-board-canvas" aria-label="Obszar roboczy tablicy notatek">
+      <div id="notesBoardStage" class="notes-board-stage"></div>
+    </div>
+  </section>
+
 <div class="page-scroll-controls" aria-label="Przewijanie strony">
   <button type="button" id="scrollToTop" aria-label="Przewiń na początek strony"   title="Początek strony"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>
     <button type="button" id="scrollToBottom" aria-label="Przewiń na koniec strony" title="Koniec strony"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
@@ -892,5 +937,8 @@
 <script src="src/warehouse/main.js"></script>
 <script src="src/catalogs/catalogs.js"></script>
 <script src="src/orders/orders.js"></script>
+<script src="src/notes-board/database.js"></script>
+<script src="src/notes-board/backup.js"></script>
+<script src="src/notes-board/board.js"></script>
 </body>
 </html>

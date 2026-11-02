@@ -56,8 +56,8 @@ async function createTransfer(input, userId) {
         throw error;
       }
       const row = entry.rows[0];
-      if (target.warehouse_type !== "main" && String(target.company_id) !== String(row.company_id)) {
-        invalid("Towar można przesunąć tylko do magazynu głównego lub magazynu tej samej spółki.");
+      if (String(target.company_id) !== String(row.company_id)) {
+        invalid("Towar można przesunąć tylko do magazynu tej samej spółki.");
       }
       const available = await stockEntryBalance(client, row.id);
       if (line.quantity > available) {

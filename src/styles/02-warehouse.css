@@ -137,6 +137,38 @@
   margin-top: 0;
 }
 
+.warehouse-name-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(240px, 340px) minmax(300px, 900px);
+  gap: 8px 14px;
+}
+
+.warehouse-name-row input,
+.warehouse-name-row select {
+  box-sizing: border-box;
+  height: 36px;
+  min-height: 36px;
+  margin-top: 4px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .warehouse-name-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.issue-recipient-field {
+  grid-column: 1 / -1;
+}
+
+.issue-recipient-field textarea {
+  min-height: 130px;
+  resize: vertical;
+}
+
 .issue-party-details {
   margin: 0;
   color: #ccc;

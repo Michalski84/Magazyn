@@ -61,7 +61,7 @@ function normalizeShipment(input) {
     invalid("Data przyjęcia musi być poprawną datą w formacie RRRR-MM-DD.");
   }
   if (!ALLOWED_STATUSES.has(shipment.status)) invalid("Nieprawidłowy status przesyłki.");
-  if (shipment.warehouseId !== null && !["main", "none"].includes(shipment.warehouseId)) {
+  if (shipment.warehouseId !== null && !["receive", "none"].includes(shipment.warehouseId)) {
     invalid("Nieprawidłowa opcja magazynu docelowego.");
   }
   if (!Array.isArray(shipment.zawartosc) || shipment.zawartosc.length > 500) {
@@ -76,7 +76,8 @@ function normalizeShipment(input) {
     const jednostka = text(item.jednostka, `zawartosc[${index}].jednostka`);
     const serial = text(item.serial, `zawartosc[${index}].serial`);
     const ilosc = Number(item.ilosc);
-    if (!nazwa || !jednostka || !Number.isSafeInteger(ilosc) || ilosc < 1) {
+    if (!nazwa || !jednostka || !Number.isFinite(ilosc) || ilosc <= 0 ||
+        ilosc >= 1e11 || Math.abs(ilosc * 1000 - Math.round(ilosc * 1000)) > 1e-6) {
       invalid(`Nieprawidłowa nazwa, jednostka lub ilość w pozycji nr ${index + 1}.`);
     }
     return { nazwa, ilosc, jednostka, serial };

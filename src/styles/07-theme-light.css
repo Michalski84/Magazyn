@@ -14,6 +14,23 @@ body[data-theme="light"] .module-tab {
 
 body[data-theme="light"] .module-tab.is-active {
   color: #fff;
+  background: #1f5f8a !important;
+  border-color: #1f5f8a !important;
+}
+
+body[data-theme="light"] .order-suggestions {
+  border-color: #bcb9ae;
+  background: #fff;
+}
+
+body[data-theme="light"] .order-suggestions button {
+  background: #fff;
+  color: #30323a;
+}
+
+body[data-theme="light"] .order-suggestions button:hover,
+body[data-theme="light"] .order-suggestions button:focus {
+  background: #e8eefc;
 }
 
 /* --- Motyw jasny: magazyn --- */
@@ -210,4 +227,3 @@ body[data-theme="light"] .catalog-module button,
 body[data-theme="light"] .catalog-module td button {
   color: #fff;
 }
-

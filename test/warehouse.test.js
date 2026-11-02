@@ -13,10 +13,13 @@ async function seed(pool) {
     UPDATE companies SET street = 'Testowa', building_number = '1', postal_code = '00-001',
            city = 'Warszawa', nip = '5260001246'
      WHERE id = (SELECT MIN(id) FROM companies) RETURNING id`)).rows[0];
-  const warehouses = (await pool.query(
-    "SELECT id, warehouse_type AS type, company_id AS \"companyId\" FROM warehouses WHERE active ORDER BY id"
-  )).rows;
-  const main = warehouses.find(w => w.type === "main");
+  const main = (await pool.query(
+    `INSERT INTO warehouses (company_id, name, warehouse_type)
+     SELECT id, name, 'other' FROM companies WHERE id = $1
+     ON CONFLICT (company_id, name) WHERE active DO UPDATE SET name = EXCLUDED.name
+     RETURNING id`,
+    [company.id]
+  )).rows[0];
   const other = (await pool.query(
     "INSERT INTO warehouses (company_id, name, warehouse_type) VALUES ($1, 'Testowy drugi', 'other') RETURNING id",
     [company.id]

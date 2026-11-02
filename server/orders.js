@@ -54,7 +54,7 @@ function quantity(value) {
   return number;
 }
 
-const UNITS = ["szt.", "opk.", "mb", "kpl."];
+const UNITS = ["szt.", "opk.", "mb", "km", "kpl."];
 
 // Pozycje zamówienia: lista {name, quantity, unit}; bez `items` używany jest pojedynczy towar.
 function orderItems(input) {
@@ -131,6 +131,27 @@ async function listOrders(user) {
   return result.rows;
 }
 
+async function suggestOrders(prefix, user) {
+  const normalizedPrefix = text(prefix, "numer zamówienia", { max: 100 });
+  if (!normalizedPrefix) return [];
+  const year = new Date().getFullYear();
+  const pattern = `${normalizedPrefix.replace(/[!%_]/g, "!$&")}%`;
+  const result = await pool.query(`
+    SELECT o.id, o.order_number AS "orderNumber", o.supplier,
+           o.company_name AS "companyName", o.items, o.item_name AS "itemName",
+           o.quantity::float8 AS quantity, o.project_number AS "projectNumber"
+      FROM orders o
+     WHERE ($2::boolean OR o.user_id = $3)
+       AND o.created_at >= $4::timestamptz
+       AND o.created_at < $5::timestamptz
+       AND o.order_number LIKE $1 ESCAPE '!'
+     ORDER BY o.order_date DESC, o.id DESC
+     LIMIT 10
+  `, [pattern, isAdmin(user), user.id,
+    `${year}-01-01T00:00:00.000Z`, `${year + 1}-01-01T00:00:00.000Z`]);
+  return result.rows;
+}
+
 async function getVisibleOrder(id, user) {
   const result = await pool.query(`
     SELECT ${COLUMNS} FROM orders o
@@ -193,4 +214,4 @@ async function patchOrder(id, input, user) {
   return getVisibleOrder(id, user);
 }
 
-module.exports = { listOrders, createOrder, updateOrder, patchOrder };
+module.exports = { listOrders, suggestOrders, createOrder, updateOrder, patchOrder };

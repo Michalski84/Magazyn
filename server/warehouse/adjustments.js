@@ -32,8 +32,7 @@ async function createAdjustment(input, userId) {
     const item = await client.query("SELECT company_id FROM items WHERE id = $1 AND active", [itemId]);
     if (!item.rowCount) invalid("Towar nie istnieje lub jest nieaktywny.");
     const companyId = item.rows[0].company_id;
-    if (warehouse.rows[0].warehouse_type !== "main" &&
-        String(warehouse.rows[0].company_id) !== String(companyId)) {
+    if (String(warehouse.rows[0].company_id) !== String(companyId)) {
       invalid("Wybrany towar należy do innej spółki niż magazyn.");
     }
     const current = await stockBalance(client, warehouseId, itemId);

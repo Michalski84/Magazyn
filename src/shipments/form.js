@@ -27,7 +27,8 @@ function addZawartoscField(nazwa = "", ilosc = "", jednostka = "szt.", serial = 
   quantityInput.type = "number";
   quantityInput.name = "ilosc";
   quantityInput.value = ilosc;
-  quantityInput.min = "1";
+  quantityInput.min = "0.001";
+  quantityInput.step = "0.001";
   quantityInput.placeholder = "Ilość";
   quantityInput.required = true;
   quantityCell.appendChild(quantityInput);
@@ -35,7 +36,7 @@ function addZawartoscField(nazwa = "", ilosc = "", jednostka = "szt.", serial = 
   const unitCell = document.createElement("td");
   const unitSelect = document.createElement("select");
   unitSelect.name = "jednostka";
-  ["szt.", "opk.", "mb", "kpl."].forEach(unit => {
+  ["szt.", "opk.", "mb", "km", "kpl."].forEach(unit => {
     const option = document.createElement("option");
     option.value = unit;
     option.textContent = unit;
@@ -75,6 +76,103 @@ function addZawartoscField(nazwa = "", ilosc = "", jednostka = "szt.", serial = 
 
 // Podłącza formularz przesyłki oraz akcje edycji, usuwania i zmiany statusu w tabeli.
 function initForm() {
+  const orderInput = document.getElementById("zamowienie");
+  const orderSuggestions = document.getElementById("orderSuggestions");
+  let orderSuggestionTimer = null;
+  let orderSuggestionRequest = 0;
+
+  function hideOrderSuggestions() {
+    orderSuggestions.hidden = true;
+    orderInput.setAttribute("aria-expanded", "false");
+    orderSuggestions.replaceChildren();
+  }
+
+  function selectOrder(order) {
+    orderSuggestionRequest++;
+    window.clearTimeout(orderSuggestionTimer);
+    orderInput.value = order.orderNumber;
+    document.getElementById("nadawca").value = order.supplier || "";
+    document.getElementById("projekt").value = order.projectNumber || "";
+    const knownCompany = Array.from(companySelect.options)
+      .some(option => option.value === order.companyName && option.value !== "inna");
+    companySelect.value = knownCompany ? order.companyName : "inna";
+    updateOtherCompanyInput();
+    if (!knownCompany) otherCompanyInput.value = order.companyName || "";
+
+    const items = Array.isArray(order.items) && order.items.length
+      ? order.items
+      : [{ name: order.itemName, quantity: order.quantity, unit: "szt." }];
+    const content = document.getElementById("zawartoscFields");
+    content.replaceChildren();
+    items.forEach(item => addZawartoscField(item.name, item.quantity, item.unit || "szt."));
+    hideOrderSuggestions();
+  }
+
+  function renderOrderSuggestions(orders) {
+    orderSuggestions.replaceChildren();
+    orders.forEach(order => {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.role = "option";
+      option.className = "order-suggestion";
+      option.textContent = `${order.orderNumber} — ${order.companyName} — ${order.supplier}`;
+      option.addEventListener("mousedown", event => event.preventDefault());
+      option.addEventListener("click", () => selectOrder(order));
+      orderSuggestions.appendChild(option);
+    });
+    orderSuggestions.hidden = orders.length === 0;
+    orderInput.setAttribute("aria-expanded", String(orders.length > 0));
+  }
+
+  orderInput.addEventListener("input", () => {
+    const prefix = orderInput.value.trim();
+    const requestId = ++orderSuggestionRequest;
+    window.clearTimeout(orderSuggestionTimer);
+    if (!prefix) {
+      hideOrderSuggestions();
+      return;
+    }
+    orderSuggestionTimer = window.setTimeout(async () => {
+      try {
+        const orders = await window.shipmentApi.orders.suggest(prefix);
+        if (requestId === orderSuggestionRequest) renderOrderSuggestions(orders);
+      } catch (error) {
+        if (requestId !== orderSuggestionRequest) return;
+        hideOrderSuggestions();
+        showAppError(`Nie udało się wyszukać zamówień: ${error.message}`);
+      }
+    }, 250);
+  });
+  orderInput.addEventListener("keydown", event => {
+    if (event.key === "Escape") hideOrderSuggestions();
+    if (event.key === "ArrowDown" && !orderSuggestions.hidden) {
+      event.preventDefault();
+      orderSuggestions.querySelector("button")?.focus();
+    }
+    if (event.key === "Enter" && !orderSuggestions.hidden) {
+      event.preventDefault();
+      orderSuggestions.querySelector("button")?.click();
+    }
+  });
+  orderSuggestions.addEventListener("keydown", event => {
+    const options = Array.from(orderSuggestions.querySelectorAll("button"));
+    const currentIndex = options.indexOf(document.activeElement);
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      options[Math.min(currentIndex + 1, options.length - 1)]?.focus();
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (currentIndex <= 0) orderInput.focus();
+      else options[currentIndex - 1].focus();
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      options[currentIndex]?.click();
+    } else if (event.key === "Escape") {
+      hideOrderSuggestions();
+      orderInput.focus();
+    }
+  });
+
   // Pole „inna spółka” i dodawanie pozycji zawartości.
 
   companySelect.addEventListener("change", updateOtherCompanyInput);
@@ -116,7 +214,7 @@ function initForm() {
     document.getElementById("iloscPrzesylek").value = s.iloscPrzesylek ?? 1;
     document.getElementById("zamowienie").value = s.zamowienie;
     document.getElementById("projekt").value = s.projekt || "";
-    document.getElementById("shipmentWarehouseSelect").value = s.warehouseId ? "main" : (s.bezMagazynu ? "none" : "main");
+    document.getElementById("shipmentWarehouseSelect").value = s.bezMagazynu && !s.warehouseId ? "none" : "receive";
 
     const zawartoscContainer = document.getElementById("zawartoscFields");
     zawartoscContainer.innerHTML = "";
@@ -177,7 +275,7 @@ function initForm() {
           const inputs = row.querySelectorAll("input, select");
           return {
             nazwa: inputs[0].value.trim(),
-            ilosc: Number.parseInt(inputs[1].value, 10),
+            ilosc: Number(inputs[1].value),
             jednostka: inputs[2].value,
             serial: inputs[3].value.trim()
           };

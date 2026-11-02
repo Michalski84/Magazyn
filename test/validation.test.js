@@ -36,7 +36,7 @@ test("defaults the company name for legacy shipments and trims custom names", ()
 
 test("normalizes optional warehouse choice and rejects unknown values", () => {
   assert.equal(normalizeShipment(validShipment).warehouseId, null);
-  assert.equal(normalizeShipment({ ...validShipment, warehouseId: "main" }).warehouseId, "main");
+  assert.equal(normalizeShipment({ ...validShipment, warehouseId: "receive" }).warehouseId, "receive");
   assert.equal(normalizeShipment({ ...validShipment, warehouseId: "none" }).warehouseId, "none");
   for (const warehouseId of ["0", "12", "abc"]) {
     assert.throws(() => normalizeShipment({ ...validShipment, warehouseId }), {
@@ -79,6 +79,14 @@ test("rejects unsupported statuses and invalid item quantities", () => {
     status: 400,
     message: /pozycji nr 1/
   });
+  assert.equal(normalizeShipment({
+    ...validShipment,
+    zawartosc: [{ nazwa: "Przewód", ilosc: 1.125, jednostka: "mb" }]
+  }).zawartosc[0].ilosc, 1.125);
+  assert.throws(() => normalizeShipment({
+    ...validShipment,
+    zawartosc: [{ nazwa: "Przewód", ilosc: 1.1234, jednostka: "mb" }]
+  }), { status: 400, message: /pozycji nr 1/ });
 });
 
 test("formats annual shipment numbers with at least three digits", () => {

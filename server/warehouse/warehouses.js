@@ -1,7 +1,7 @@
 // Spółki i magazyny: odczyt, tworzenie, edycja oraz usuwanie magazynów.
 const { pool } = require("../database");
 const { requireObject, requiredText, requiredId } = require("./validation");
-const { lockWarehouses, stockEntryBalance } = require("./ledger");
+const { lockWarehouses, stockEntryBalance, ensureCompanyWarehouse } = require("./ledger");
 
 // Zwraca spółki dostępne w module magazynu.
 async function getCompanies() {
@@ -21,7 +21,7 @@ async function getWarehouses() {
       FROM warehouses w
       LEFT JOIN companies c ON c.id = w.company_id
      WHERE w.active
-     ORDER BY (w.warehouse_type = 'main') DESC, c.name NULLS FIRST, w.name
+     ORDER BY c.name NULLS FIRST, w.name
   `);
   return result.rows;
 }
@@ -63,11 +63,11 @@ async function updateWarehouse(warehouseId, input) {
     const result = await pool.query(`
       UPDATE warehouses
          SET name = $2
-       WHERE id = $1 AND warehouse_type <> 'main' AND active
+       WHERE id = $1 AND active
       RETURNING id, company_id AS "companyId", name, warehouse_type AS type, active
     `, [id, name]);
     if (!result.rowCount) {
-      const error = new Error("Nie znaleziono aktywnego magazynu do edycji albo jest to magazyn główny.");
+      const error = new Error("Nie znaleziono aktywnego magazynu do edycji.");
       error.status = 404;
       throw error;
     }
@@ -81,14 +81,14 @@ async function updateWarehouse(warehouseId, input) {
   }
 }
 
-// Usuwa magazyn (nie główny); dodatnie stany przenosi najpierw do magazynu głównego.
+// Usuwa magazyn (nie podstawowy magazyn spółki); dodatnie stany przenosi najpierw do magazynu spółki.
 async function deleteWarehouse(warehouseId, userId) {
   const id = requiredId(warehouseId, "magazyn");
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     const selected = await client.query(
-      "SELECT id, name, warehouse_type FROM warehouses WHERE id = $1 AND active",
+      "SELECT id, name, company_id FROM warehouses WHERE id = $1 AND active",
       [id]
     );
     if (!selected.rowCount) {
@@ -96,21 +96,14 @@ async function deleteWarehouse(warehouseId, userId) {
       error.status = 404;
       throw error;
     }
-    if (selected.rows[0].warehouse_type === "main") {
-      const error = new Error("Magazynu głównego nie można usunąć.");
+    const company = await client.query("SELECT name FROM companies WHERE id = $1", [selected.rows[0].company_id]);
+    if (company.rows[0]?.name === selected.rows[0].name) {
+      const error = new Error("Magazynu o nazwie spółki nie można usunąć — jest to jej podstawowy magazyn.");
       error.status = 400;
       throw error;
     }
-    const main = await client.query(
-      "SELECT id FROM warehouses WHERE warehouse_type = 'main' AND active"
-    );
-    if (!main.rowCount) {
-      const error = new Error("Nie znaleziono aktywnego magazynu głównego.");
-      error.status = 409;
-      throw error;
-    }
-    const mainId = String(main.rows[0].id);
-    await lockWarehouses(client, [id, mainId]);
+    const targetId = String(await ensureCompanyWarehouse(client, selected.rows[0].company_id));
+    await lockWarehouses(client, [id, targetId]);
     const entries = await client.query(`
       SELECT id, company_id, item_id, order_number, project_number,
              reference_no, supplier, serial_number
@@ -123,7 +116,7 @@ async function deleteWarehouse(warehouseId, userId) {
     for (const entry of entries.rows) {
       const balance = await stockEntryBalance(client, entry.id);
       if (balance <= 0) continue;
-      const note = `Przeniesienie do magazynu głównego przed usunięciem magazynu „${selected.rows[0].name}”.`;
+      const note = `Przeniesienie do magazynu spółki przed usunięciem magazynu „${selected.rows[0].name}”.`;
       const destination = await client.query(`
         INSERT INTO warehouse_stock_entries
           (company_id, warehouse_id, item_id, source_entry_id, order_number,
@@ -131,7 +124,7 @@ async function deleteWarehouse(warehouseId, userId) {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING id
       `, [
-        entry.company_id, mainId, entry.item_id, entry.id, entry.order_number,
+        entry.company_id, targetId, entry.item_id, entry.id, entry.order_number,
         entry.project_number, balance, entry.reference_no, entry.supplier, entry.serial_number
       ]);
       await client.query(`
@@ -143,7 +136,7 @@ async function deleteWarehouse(warehouseId, userId) {
           ($1, $9, $3, $10, 'TRANSFER', $11, 'transfer', $6, $7, $8)
       `, [
         entry.company_id, id, entry.item_id, entry.id, -balance,
-        selected.rows[0].name, userId, note, mainId, destination.rows[0].id, balance
+        selected.rows[0].name, userId, note, targetId, destination.rows[0].id, balance
       ]);
       movedEntries += 1;
     }

@@ -48,6 +48,138 @@ test("formularz logowania nie wysyła danych metodą GET", () => {
   assert.equal(byId("loginForm").action, "http://localhost:3000/api/auth/login");
 });
 
+test("tablica notatek jest dostępna w nawigacji, a import waliduje wersję kopii", () => {
+  assert.equal(w.document.querySelector('[data-module="notesBoardModule"]').textContent, "Tablica notatek");
+  assert.ok(byId("notesBoardStage"));
+  assert.equal(byId("notesBoardStatusFilter"), null);
+  assert.equal(byId("notesBoardDeadlineFilter"), null);
+  assert.equal(byId("notesBoardNotificationsButton"), null);
+  const backup = run(`validateNotesBoardBackup({
+    format: "magazyn-notes-board", version: 1, notes: [], images: []
+  })`);
+  assert.equal(backup.notes.length, 0);
+  assert.equal(backup.images.length, 0);
+  assert.equal(backup.settings.status, "active");
+  assert.throws(() => run(`validateNotesBoardBackup({ format: "magazyn-notes-board", version: 999, notes: [], images: [] })`), /Nieobsługiwany format/);
+  assert.throws(() => run(`validateNotesBoardBackup({
+    format: "magazyn-notes-board", version: 1, notes: [], images: [{ id: "img", type: "text/html", data: "" }]
+  })`), /nieobsługiwany format obrazu/);
+});
+
+test("jednostka km jest dostępna we wszystkich polach wyboru jednostki", () => {
+  const allowedUnits = ["szt.", "opk.", "mb", "km", "kpl."];
+  assert.deepEqual([...byId("newItemUnit").options].map(option => option.value), allowedUnits);
+  assert.deepEqual([...byId("editStockUnit").options].map(option => option.value), allowedUnits);
+
+  byId("addZawartoscButton").click();
+  const shipmentUnit = byId("zawartoscFields").lastElementChild.querySelector('[name="jednostka"]');
+  assert.deepEqual([...shipmentUnit.options].map(option => option.value), allowedUnits);
+  shipmentUnit.value = "km";
+  assert.equal(shipmentUnit.value, "km");
+
+  const orderUnit = byId("orderItemsFields").querySelector('[name="itemUnit"]');
+  assert.deepEqual([...orderUnit.options].map(option => option.value), allowedUnits);
+});
+
+test("pinezka pokazuje opcje na karteczce, a osobny przycisk otwiera edytor tekstu", () => {
+  const card = run(`notesBoardRenderCard({
+    id: "note-test", text: "Treść próbna", color: "yellow", x: 10, y: 20,
+    width: 280, height: 330, createdAt: "2026-10-27T10:00:00.000Z",
+    important: false, completed: false, archived: false, reminderAt: "",
+    imageIds: [], imageWidths: {}, order: 1
+  })`);
+  assert.equal(card.querySelectorAll(".notes-board-card-header button").length, 1);
+  assert.equal(card.querySelector(".notes-board-options-toggle").textContent, "📌");
+  assert.equal(card.querySelector(".notes-board-text").textContent, "Treść próbna");
+  assert.equal(card.querySelector(".notes-board-text").getAttribute("contenteditable"), "true");
+  const cardOptions = card.querySelector(".notes-board-card-options");
+  assert.equal(cardOptions.hidden, true);
+  assert.equal(card.querySelector(".notes-board-images").parentElement, cardOptions);
+  assert.equal([...card.querySelectorAll("button")].some(button => /Archiwizuj|Ukończ|Przenieś na wierzch/.test(button.textContent)), false);
+  assert.match(card.querySelector(".notes-board-created").textContent, /Utworzono:/);
+  assert.equal(card.querySelector('[aria-label="Rozmiar karteczki"]'), null);
+  assert.equal([...card.querySelectorAll("button")].some(button => button.textContent.includes("Duplikuj")), false);
+
+  const editorModal = w.document.querySelector('.notes-board-editor-modal[data-note-id="note-test"]');
+  assert.equal(editorModal.parentElement, w.document.body);
+  assert.equal(editorModal.hidden, true);
+  assert.equal(editorModal.querySelector(".notes-board-text"), null);
+  assert.equal(editorModal.querySelectorAll(".notes-board-format-button").length, 3);
+  assert.ok(editorModal.querySelector('[aria-label="Wielkość czcionki"]'));
+  assert.ok(editorModal.querySelector('[aria-label="Krój pisma"]'));
+  assert.ok(editorModal.querySelector('[aria-label="Kolor tekstu: zastosuj wybrany kolor"]'));
+  assert.ok(editorModal.querySelector('[aria-label="Kolor tła tekstu: zastosuj wybrany kolor"]'));
+  assert.equal(editorModal.querySelectorAll(".notes-board-color-swatch").length, 16);
+  assert.equal([...editorModal.querySelectorAll(".notes-board-color-palette")].every(palette => palette.hidden), true);
+  assert.equal(editorModal.querySelectorAll('[aria-label$="wybierz własny kolor"]').length, 2);
+  const textColorDropdown = editorModal.querySelector('[aria-label="Wybierz kolor tekstu"]');
+  const textColorPalette = editorModal.querySelector('[aria-label="Kolor tekstu — kolory podstawowe"]');
+  textColorDropdown.click();
+  assert.equal(textColorPalette.hidden, false);
+  textColorDropdown.click();
+  assert.equal(textColorPalette.hidden, true);
+  assert.equal(editorModal.querySelector("textarea.notes-board-text"), null);
+  assert.equal(editorModal.querySelector(".notes-board-delete-button"), null);
+  assert.equal(editorModal.querySelector(".notes-board-card-controls"), null);
+  const importantButton = card.querySelector(".notes-board-option-actions button");
+  const editTextButton = card.querySelector(".notes-board-option-actions button[title='Otwórz edytor tekstu']");
+  const deleteButton = card.querySelector(".notes-board-delete-button");
+  assert.equal(editTextButton.previousElementSibling, importantButton);
+  assert.equal(importantButton.parentElement, deleteButton.parentElement);
+  assert.equal(card.querySelector(".notes-board-card-controls select").parentElement,
+    card.querySelector(".notes-board-card-controls"));
+  assert.equal(card.querySelector(".notes-board-reminder"), null);
+
+  card.querySelector(".notes-board-options-toggle").click();
+  assert.equal(cardOptions.hidden, false);
+  assert.equal(editorModal.hidden, true);
+  assert.equal(card.querySelector(".notes-board-options-toggle").getAttribute("aria-expanded"), "true");
+  const secondCard = run(`notesBoardRenderCard({
+    id: "note-test-second", text: "Druga treść", color: "blue", x: 30, y: 40,
+    width: 280, height: 330, createdAt: "2026-10-27T10:00:00.000Z",
+    important: false, completed: false, archived: false, reminderAt: "",
+    imageIds: [], imageWidths: {}, order: 2
+  })`);
+  const secondModal = w.document.querySelector('.notes-board-editor-modal[data-note-id="note-test-second"]');
+  secondCard.querySelector(".notes-board-options-toggle").click();
+  assert.equal(editorModal.hidden, true);
+  assert.equal(secondModal.hidden, true);
+  assert.equal(card.querySelector(".notes-board-options-toggle").getAttribute("aria-expanded"), "true");
+  secondCard.querySelector(".notes-board-option-actions button[title='Otwórz edytor tekstu']").click();
+  assert.equal(secondModal.hidden, false);
+  card.querySelector(".notes-board-option-actions button[title='Otwórz edytor tekstu']").click();
+  assert.equal(editorModal.hidden, false);
+  assert.equal(secondModal.hidden, true);
+  editorModal.querySelector(".notes-board-editor-close").click();
+  assert.equal(editorModal.hidden, true);
+
+  const imported = run(`validateNotesBoardBackup({
+    format: "magazyn-notes-board", version: 1,
+    notes: [{
+      id: "resized", text: "Ręcznie zmieniona", color: "blue", x: 10, y: 20,
+      width: 340, height: 260, sizeManual: true, imageIds: []
+    }],
+    images: []
+  })`);
+  assert.equal(imported.notes[0].sizeManual, true);
+});
+
+test("import kopii zachowuje dozwolone formatowanie, ale usuwa niebezpieczne znaczniki", () => {
+  const imported = run(`validateNotesBoardBackup({
+    format: "magazyn-notes-board", version: 1,
+    notes: [{
+      id: "formatted", text: "Ważna treść", richText: '<b>Tekst</b><img src=x onerror="alert(1)"><span style="color:#ff0000;background-color:#ffff00">kolor</span><script>alert(1)</script>',
+      color: "yellow", x: 10, y: 20, width: 260, height: 180, imageIds: []
+    }],
+    images: []
+  })`);
+  assert.ok(imported.notes[0].richText.includes("<b>Tekst</b>"));
+  assert.ok(imported.notes[0].richText.includes("background-color: rgb(255, 255, 0)"));
+  ["<img", "<script", "onerror", "alert("].forEach(value => {
+    assert.equal(imported.notes[0].richText.includes(value), false);
+  });
+});
+
 test("zamówienia domyślnie używają PLN i pokazują poprawną wartość bez NaN", async () => {
   assert.equal(byId("orderForm").elements.currency.value, "PLN");
   ctx.__ordersTestApi = {
@@ -75,6 +207,79 @@ test("zamówienia domyślnie używają PLN i pokazują poprawną wartość bez N
   const amountCells = [...byId("ordersTable").tBodies[0].rows].map(row => row.cells[4].textContent);
   assert.deepEqual(amountCells, ["123,45 zł", "— zł"]);
   assert.ok(amountCells.every(value => !value.includes("NaN")));
+});
+
+test("strzałki ilości w zamówieniu zmieniają ją o 1, ale ręcznie można wpisać ułamek", async () => {
+  const form = byId("orderForm");
+  const quantity = byId("orderItemsFields").querySelector('[name="itemQuantity"]');
+  assert.equal(quantity.step, "1");
+  assert.equal(quantity.min, "0");
+  quantity.value = "1.25";
+  assert.equal(quantity.validity.stepMismatch, true);
+
+  const companySelect = form.elements.companyId;
+  companySelect.add(new w.Option("Spółka testowa", "1"));
+  form.elements.orderNumber.value = "TEST-1";
+  form.elements.supplier.value = "Dostawca testowy";
+  companySelect.value = "1";
+  form.elements.deliveryAddress.value = "Adres testowy";
+  form.elements.orderDate.value = "2026-11-01";
+  form.elements.orderValue.value = "0";
+  byId("orderItemsFields").querySelector('[name="itemName"]').value = "Towar testowy";
+
+  let submittedOrder;
+  run(`window.shipmentApi.orders.create = async order => {
+    globalThis.__submittedOrder = order;
+    return { ...order, id: "order-step-test", status: "zlozone" };
+  }`);
+  quantity.value = "0";
+  form.dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(run("globalThis.__submittedOrder"), undefined);
+
+  quantity.value = "1.25";
+  form.dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  submittedOrder = run("globalThis.__submittedOrder");
+  assert.equal(submittedOrder.items[0].quantity, "1.25");
+  assert.equal(quantity.step, "1");
+});
+
+test("wybranie podpowiedzi zamówienia uzupełnia dane przesyłki i zachowuje ilości", async () => {
+  let searchedPrefix;
+  run(`
+    window.shipmentApi.orders.suggest = async prefix => {
+      globalThis.__searchedOrderPrefix = prefix;
+      return [{
+        orderNumber: "PO-123", supplier: "Dostawca testowy", companyName: "Maxto ITS",
+        projectNumber: "PROJ-7",
+        items: [
+          { name: "Przewód", quantity: 1.25, unit: "mb" },
+          { name: "Złączka", quantity: 4, unit: "szt." }
+        ]
+      }];
+    };
+  `);
+  const orderInput = byId("zamowienie");
+  orderInput.value = "PO-";
+  orderInput.dispatchEvent(new w.Event("input"));
+  await new Promise(resolve => setTimeout(resolve, 300));
+  searchedPrefix = run("globalThis.__searchedOrderPrefix");
+
+  assert.equal(searchedPrefix, "PO-");
+  const suggestion = byId("orderSuggestions").querySelector("button");
+  assert.ok(suggestion);
+  suggestion.click();
+
+  assert.equal(orderInput.value, "PO-123");
+  assert.equal(byId("nadawca").value, "Dostawca testowy");
+  assert.equal(byId("projekt").value, "PROJ-7");
+  assert.equal(byId("nazwaSpolkiSelect").value, "Maxto ITS");
+  const contentRows = [...byId("zawartoscFields").rows];
+  assert.deepEqual(contentRows.map(row => row.querySelector('[name="nazwa"]').value), ["Przewód", "Złączka"]);
+  assert.deepEqual(contentRows.map(row => row.querySelector('[name="ilosc"]').value), ["1.25", "4"]);
+  assert.deepEqual(contentRows.map(row => row.querySelector('[name="jednostka"]').value), ["mb", "szt."]);
+  assert.equal(byId("orderSuggestions").hidden, true);
 });
 
 test("filtr spółek jest posortowany wg liczby pozycji", () => {

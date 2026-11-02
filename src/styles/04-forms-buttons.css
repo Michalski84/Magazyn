@@ -142,6 +142,38 @@ button[type="button"]:hover {
   background: #174d73;
 }
 
+.order-lookup {
+  position: relative;
+}
+
+.order-suggestions {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid #555;
+  border-radius: 6px;
+  background: #2b2b3c;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.order-suggestions button {
+  display: block;
+  width: 100%;
+  margin: 0;
+  border-radius: 0;
+  background: #2b2b3c;
+  text-align: left;
+}
+
+.order-suggestions button:hover,
+.order-suggestions button:focus {
+  background: #3a3a4f;
+}
+
 /* --- Separator hr --- */
 hr {
   margin: 50px auto;
@@ -149,4 +181,3 @@ hr {
   border-top: 1px solid #444;
   max-width: 800px;
 }
-

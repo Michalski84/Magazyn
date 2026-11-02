@@ -1,6 +1,7 @@
 // Przyjmowanie przesyłek na magazyn (PZ).
 const { pool } = require("../database");
 const { invalid, requiredId } = require("./validation");
+const { ensureCompanyWarehouse, lockWarehouses } = require("./ledger");
 
 // Przyjmuje towary z przesyłki na magazyn (PZ) w ramach istniejącej transakcji.
 async function receiveShipment(client, shipmentId, shipment, userId) {
@@ -11,17 +12,8 @@ async function receiveShipment(client, shipmentId, shipment, userId) {
     return null;
   }
   if (!shipment.zawartosc.length) return null;
-  const warehouse = await client.query(
-    "SELECT id FROM warehouses WHERE active AND warehouse_type = 'main' FOR UPDATE"
-  );
-  if (!warehouse.rowCount) {
-    const error = new Error("Magazyn główny nie istnieje lub jest nieaktywny.");
-    error.status = 400;
-    throw error;
-  }
-  const warehouseId = warehouse.rows[0].id;
   if (!shipment.nazwaSpolki) {
-    const error = new Error("Podaj nazwę spółki, aby przyjąć przesyłkę na magazyn główny.");
+    const error = new Error("Podaj nazwę spółki, aby przyjąć przesyłkę na magazyn.");
     error.status = 400;
     throw error;
   }
@@ -31,6 +23,8 @@ async function receiveShipment(client, shipmentId, shipment, userId) {
     RETURNING id
   `, [shipment.nazwaSpolki]);
   const companyId = company.rows[0].id;
+  const warehouseId = await ensureCompanyWarehouse(client, companyId);
+  await lockWarehouses(client, [warehouseId]);
   await client.query(
     "UPDATE shipments SET warehouse_id = $1, received_without_warehouse = FALSE WHERE id = $2",
     [warehouseId, shipmentId]
@@ -113,7 +107,7 @@ async function receiveExistingShipment(shipmentId, userId) {
       throw error;
     }
     if (!shipment.zawartosc.length) invalid("Przesyłka nie zawiera pozycji towarowych do przyjęcia.");
-    shipment.warehouseId = "main";
+    shipment.warehouseId = "receive";
     const receivedWarehouseId = await receiveShipment(client, shipmentId, shipment, userId);
     await client.query("COMMIT");
     return { shipmentId, warehouseId: receivedWarehouseId };

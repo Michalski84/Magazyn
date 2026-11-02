@@ -1,7 +1,7 @@
 // Dokumenty wydania (WZ): tworzenie, odczyt, edycja i anulowanie.
 const { pool } = require("../database");
 const { invalid, requireObject, requiredText, requiredId, optionalText, positiveQuantity, validDate } = require("./validation");
-const { lockWarehouses, stockEntryBalance, createDocumentNumber } = require("./ledger");
+const { lockWarehouses, stockEntryBalance, createDocumentNumber, ensureCompanyWarehouse } = require("./ledger");
 
 const DELIVERY_METHODS = new Set(["courier", "personal_pickup", "own_transport", "dedicated_transport"]);
 
@@ -21,9 +21,13 @@ function parseIssueHeader(input) {
   if (deliveryMethod === "personal_pickup" && !receivingPerson) {
     invalid("Podaj nazwisko osoby odbierającej przy odbiorze osobistym.");
   }
+  const recipientText = optionalText(input.recipientText, "odbiorca", 2000).replace(/\r\n?/g, "\n").trim();
+  const hasRecipientId = input.recipientId != null && String(input.recipientId).trim() !== "";
+  if (!recipientText && !hasRecipientId) invalid("Podaj odbiorcę: wpisz adres lub wybierz zapisanego odbiorcę.");
   return {
     issueDate: validDate(input.issueDate, "data wydania"),
-    recipientId: requiredId(input.recipientId, "odbiorca"),
+    recipientId: hasRecipientId ? requiredId(input.recipientId, "odbiorca") : null,
+    recipientText,
     projectNumber: optionalText(input.projectNumber, "numer projektu", 500),
     deliveryMethod,
     deliveryTrackingNumber,
@@ -54,6 +58,22 @@ async function loadIssueRecipient(client, recipientId) {
   }
   const recipient = recipientResult.rows[0];
   return recipient;
+}
+
+// Ustala dane odbiorcy: wpisany tekst (pierwsza linia = nazwa, reszta = adres) lub zapisany odbiorca.
+async function resolveIssueRecipient(client, header) {
+  if (header.recipientText) {
+    const [name, ...rest] = header.recipientText.split("\n");
+    return {
+      name: name.trim().slice(0, 500),
+      addressText: rest.join("\n").trim(),
+      address2: "",
+      contactPerson: "",
+      phone: ""
+    };
+  }
+  const recipient = await loadIssueRecipient(client, header.recipientId);
+  return { ...recipient, addressText: issueAddressLine(recipient) };
 }
 
 // Tworzy dokument WZ, zdejmuje stany i zapisuje ruchy w jednej transakcji.
@@ -148,7 +168,7 @@ async function createIssue(input, userId) {
     if (![seller.street, seller.buildingNumber, seller.postalCode, seller.city, seller.nip].every(Boolean)) {
       invalid(`Uzupełnij adres i NIP spółki ${seller.name} w kartotece Spółki przed wystawieniem WZ.`);
     }
-    const recipient = await loadIssueRecipient(client, recipientId);
+    const recipient = await resolveIssueRecipient(client, header);
     issuedTo = recipient.name;
     const addressLine = issueAddressLine;
     if (!projectNumber) {
@@ -170,7 +190,7 @@ async function createIssue(input, userId) {
     `, [
       companyId, warehouseId, documentNo, issueDate, issuedTo, userId, notes,
       recipientId, seller.name, addressLine(seller), seller.nip,
-      addressLine(recipient), recipient.address2, recipient.contactPerson, recipient.phone,
+      recipient.addressText, recipient.address2, recipient.contactPerson, recipient.phone,
       projectNumber, deliveryMethod, deliveryTrackingNumber, receivingPerson
     ]);
     const documentId = document.rows[0].id;
@@ -278,7 +298,7 @@ async function updateIssue(id, input) {
       error.status = 409;
       throw error;
     }
-    const recipient = await loadIssueRecipient(client, header.recipientId);
+    const recipient = await resolveIssueRecipient(client, header);
     await client.query(`
       UPDATE issue_documents
          SET issue_date = $2, recipient_id = $3, issued_to = $4, recipient_address = $5,
@@ -287,7 +307,7 @@ async function updateIssue(id, input) {
              receiving_person = $12
        WHERE id = $1
     `, [
-      id, header.issueDate, header.recipientId, recipient.name, issueAddressLine(recipient),
+      id, header.issueDate, header.recipientId, recipient.name, recipient.addressText,
       recipient.address2, recipient.contactPerson, recipient.phone,
       header.projectNumber, header.deliveryMethod, header.deliveryTrackingNumber, header.receivingPerson
     ]);
@@ -327,15 +347,7 @@ async function cancelIssue(id, userId) {
     }
     let returnWarehouseId = issue.warehouse_id;
     if (!issueWarehouse.rows[0].active) {
-      const main = await client.query(
-        "SELECT id FROM warehouses WHERE warehouse_type = 'main' AND active"
-      );
-      if (!main.rowCount) {
-        const error = new Error("Nie znaleziono aktywnego magazynu głównego do zwrotu towaru.");
-        error.status = 409;
-        throw error;
-      }
-      returnWarehouseId = main.rows[0].id;
+      returnWarehouseId = await ensureCompanyWarehouse(client, issue.company_id);
     }
     await lockWarehouses(client, [issue.warehouse_id, returnWarehouseId]);
     if (issue.status === "cancelled") {

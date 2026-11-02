@@ -110,9 +110,9 @@ Przy wprowadzaniu przesyłki można wybrać nazwę spółki z listy. Opcja „in
 
 ## Moduł Magazyn
 
-Zakładka **Magazyn** prowadzi kartotekę towarów i historię ruchów. Magazyn główny jest nieusuwalny; można tworzyć dodatkowe magazyny przypisane do spółki, zmieniać ich nazwy i usuwać je. Przy usuwaniu dodatkowego magazynu jego pozostały stan jest przenoszony do magazynu głównego, a historia zostaje zachowana.
+Zakładka **Magazyn** prowadzi kartotekę towarów i historię ruchów. Nie ma magazynu głównego: wybór spółki oznacza wybór magazynu o jej nazwie, który jest tworzony automatycznie, gdy jeszcze nie istnieje. Magazyn o nazwie spółki jest nieusuwalny; można tworzyć dodatkowe magazyny spółki, zmieniać ich nazwy i usuwać je. Przy usuwaniu dodatkowego magazynu jego pozostały stan jest przenoszony do magazynu spółki, a historia zostaje zachowana. Towar można przesuwać (MM) tylko między magazynami tej samej spółki. Migracja `025_remove_main_warehouse.sql` przenosi stany z dawnego magazynu głównego do magazynów spółek.
 
-W formularzu przesyłki pole **Magazyn docelowy** ma dwie opcje: „Przyjmij na magazyn główny” i „Nie przyjmuj na magazyn”. Każda pozycja przesyłki tworzy osobną, niezależną partię magazynową (numer zamówienia, projektu i dostawca); zmiana lub usunięcie przesyłki nie zmienia stanu magazynu. Spółka z przesyłki jest zakładana w kartotece, jeśli jeszcze nie istnieje. Starsze przesyłki, w tym importowane, nie zmieniają stanu wstecz — dla takiej przesyłki dostępna jest akcja **Przyjmij do magazynu**. Towar dodany ręcznie zaczyna od stanu zerowego; stan początkowy wprowadza się korektą z podaniem przyczyny.
+W formularzu przesyłki pole **Magazyn docelowy** ma dwie opcje: „Przyjmij towar na magazyn” (magazyn spółki wybranej na liście) i „Nie przyjmuj towaru na magazyn”. Każda pozycja przesyłki tworzy osobną, niezależną partię magazynową (numer zamówienia, projektu i dostawca); zmiana lub usunięcie przesyłki nie zmienia stanu magazynu. Spółka z przesyłki jest zakładana w kartotece, jeśli jeszcze nie istnieje. Starsze przesyłki, w tym importowane, nie zmieniają stanu wstecz — dla takiej przesyłki dostępna jest akcja **Przyjmij do magazynu**. Towar dodany ręcznie zaczyna od stanu zerowego; stan początkowy wprowadza się korektą z podaniem przyczyny.
 
 WZ zatwierdza wydanie natychmiast i atomowo sprawdza dostępny stan wybranej partii; jeden dokument może obejmować towar tylko jednej spółki. Dokument ma numer `WZ/RRRR/NNNN`, można go wydrukować lub anulować (anulowanie zapisuje ruch zwrotny). Korekty stanu wymagają podania przyczyny i nie mogą obniżyć stanu poniżej zera. Tabela magazynu pokazuje partie osobno wraz z magazynem, LP, dostawcą (nadawcą przesyłki), numerami zamówienia i projektu, przyjęciami, wydaniami i stanem; stany można wyeksportować do Excela.
 
@@ -167,5 +167,11 @@ npm start
 ```
 
 Zmiany schematu dodawaj jako kolejne uporządkowane pliki SQL w `migrations/`. Aplikacja wykona je przy starcie, z zapisem zastosowanych migracji w bazie.
+
+## Tablica notatek
+
+Zakładka **Tablica notatek** zapisuje karteczki, obrazy i ustawienia w IndexedDB przeglądarki. Dane są przypisane do identyfikatora zalogowanego konta, pozostają na danym urządzeniu i nie są synchronizowane z serwerem ani innymi przeglądarkami. Kopię można wyeksportować lub zaimportować z poziomu modułu; import zastępuje dane tablicy bieżącego konta.
+
+Przypomnienia są sprawdzane, gdy aplikacja działa. Powiadomienia systemowe wymagają zgody użytkownika i nie działają po zamknięciu przeglądarki.
 
 Testy: `test/validation.test.js` (walidacja), `test/warehouse.test.js` i `test/roles.test.js` (logika magazynu oraz role/dziennik zmian na tymczasowym schemacie PostgreSQL `test_*` tworzonym z `DATABASE_URL`; bez bazy są pomijane) oraz `test/client.test.js` (interfejs w jsdom).

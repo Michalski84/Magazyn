@@ -87,6 +87,7 @@ window.shipmentApi = {
   },
   orders: {
     list: () => apiRequest("/orders"),
+    suggest: prefix => apiRequest(`/orders/suggestions?${new URLSearchParams({ prefix })}`),
     create: order => apiRequest("/orders", { method: "POST", body: order }),
     update: (id, order) => apiRequest(`/orders/${id}`, { method: "PUT", body: order }),
     patch: (id, patch) => apiRequest(`/orders/${id}`, { method: "PATCH", body: patch })

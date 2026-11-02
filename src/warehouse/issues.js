@@ -1,33 +1,41 @@
 // Wydania zewnętrzne (WZ): formularz, edycja dokumentu, dane stron i sposób dostawy.
 
 // Wyświetla dane sprzedawcy i odbiorcy w formularzu WZ.
-function renderIssueParties() {
+function renderIssueParties(fromRecipientSelect = false) {
   const warehouse = state.warehouses.find(item => String(item.id) === byId("issueWarehouse").value);
   const selectedEntry = Array.from(byId("issueLines").querySelectorAll("select"))
     .map(select => state.stock.find(item => String(item.stockEntryId) === select.value))
     .find(Boolean);
   const companyId = selectedEntry?.companyId || warehouse?.companyId;
   const company = state.companies.find(item => String(item.id) === String(companyId));
-  const recipient = state.recipients.find(item => String(item.id) === byId("issueRecipient").value);
+  const recipient = selectedIssueRecipient();
   const address = party => [
     [party.street, party.buildingNumber].filter(Boolean).join(" "),
     [party.postalCode, party.city].filter(Boolean).join(" ")
   ].filter(Boolean).join("\n");
   const sellerDetails = byId("issueSellerDetails");
-  const recipientDetails = byId("issueRecipientDetails");
+  const recipientDetails = byId("issueRecipientText");
   sellerDetails.textContent = company
     ? `Sprzedawca: ${company.name}${address(company) ? `\n${address(company)}` : ""}${company.nip ? `\nNIP: ${company.nip}` : ""}`
     : "Sprzedawca: uzupełnij dane spółki w kartotece Spółki.";
-  recipientDetails.textContent = recipient
+  if (!fromRecipientSelect) return;
+  recipientDetails.value = recipient
     ? [
-      "Odbiorca:",
       recipient.name,
       address(recipient),
       recipient.address2,
       recipient.contactPerson ? `Kontakt: ${recipient.contactPerson}` : "",
       recipient.phone ? `Tel. ${recipient.phone}` : ""
     ].filter(Boolean).join("\n")
-    : "Wybierz odbiorcę z kartoteki Odbiorcy.";
+    : "";
+  recipientDetails.dataset.generated = recipientDetails.value;
+}
+
+// Zwraca id zapisanego odbiorcy tylko gdy tekst odbiorcy nie został zmieniony ręcznie.
+function linkedRecipientId() {
+  const text = byId("issueRecipientText");
+  const recipient = selectedIssueRecipient();
+  return recipient && text.value === text.dataset.generated ? String(recipient.id) : "";
 }
 
 // Automatycznie uzupełnia numer projektu na podstawie wybranych pozycji.
@@ -68,7 +76,16 @@ function editIssue(issue) {
   showForm("issueCreateForm");
   byId("issueWarehouse").value = String(issue.warehouseId);
   byId("issueDate").value = issue.issueDate;
-  byId("issueRecipient").value = issue.recipientId ? String(issue.recipientId) : "";
+  const savedRecipient = state.recipients.find(item => item.id === issue.recipientId);
+  byId("issueRecipient").value = savedRecipient ? recipientLabel(savedRecipient) : "";
+  byId("issueRecipientText").value = [
+    issue.issuedTo,
+    issue.recipientAddress,
+    issue.recipientAddress2,
+    issue.recipientContact ? `Kontakt: ${issue.recipientContact}` : "",
+    issue.recipientPhone ? `Tel. ${issue.recipientPhone}` : ""
+  ].filter(Boolean).join("\n");
+  byId("issueRecipientText").dataset.generated = issue.recipientId ? byId("issueRecipientText").value : "";
   byId("issueProjectNumber").value = issue.projectNumber || "";
   byId("issueDeliveryMethod").value = issue.deliveryMethod || "";
   updateIssueDeliveryFields();
@@ -119,7 +136,7 @@ function initWarehouseIssues() {
   });
   byId("issueWarehouse").addEventListener("change", updateIssueItemOptions);
   byId("issueWarehouse").addEventListener("change", renderIssueParties);
-  byId("issueRecipient").addEventListener("change", renderIssueParties);
+  byId("issueRecipient").addEventListener("change", () => renderIssueParties(true));
   byId("issueLines").addEventListener("change", renderIssueParties);
   byId("issueDeliveryMethod").addEventListener("change", updateIssueDeliveryFields);
   byId("issueLines").addEventListener("change", updateIssueProject);
@@ -135,7 +152,8 @@ function initWarehouseIssues() {
       if (state.editingIssueId) {
         const issue = await api.updateIssue(state.editingIssueId, {
           issueDate: byId("issueDate").value,
-          recipientId: byId("issueRecipient").value,
+          recipientId: linkedRecipientId(),
+          recipientText: byId("issueRecipientText").value,
           projectNumber: byId("issueProjectNumber").value,
           deliveryMethod: byId("issueDeliveryMethod").value,
           deliveryTrackingNumber: byId("issueTrackingNumber").value,
@@ -156,12 +174,12 @@ function initWarehouseIssues() {
       const issue = await api.createIssue({
         warehouseId: byId("issueWarehouse").value,
         issueDate: byId("issueDate").value,
-        recipientId: byId("issueRecipient").value,
+        recipientId: linkedRecipientId(),
+        recipientText: byId("issueRecipientText").value,
         projectNumber: byId("issueProjectNumber").value,
         deliveryMethod: byId("issueDeliveryMethod").value,
         deliveryTrackingNumber: byId("issueTrackingNumber").value,
         receivingPerson: byId("issueReceivingPerson").value,
-        issuedTo: byId("issueRecipient").selectedOptions[0]?.textContent || "",
         lines
       });
       form.reset();

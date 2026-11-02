@@ -196,11 +196,15 @@ test("zamówienia: użytkownik widzi tylko własne, administrator wszystkie", as
     method: "POST",
     body: JSON.stringify({
       ...JSON.parse(order("ZAM-M")),
-      items: [{ name: "A", quantity: 1, unit: "opk." }, { name: "B", quantity: "2", unit: "mb" }]
+      items: [
+        { name: "A", quantity: 1, unit: "opk." },
+        { name: "B", quantity: "2", unit: "mb" },
+        { name: "C", quantity: "3", unit: "km" }
+      ]
     })
   });
   assert.equal(multi.status, 201);
-  assert.deepEqual((await multi.json()).items.map(item => item.unit), ["opk.", "mb"]);
+  assert.deepEqual((await multi.json()).items.map(item => item.unit), ["opk.", "mb", "km"]);
   assert.equal((await call(mag, "/orders", {
     method: "POST",
     body: JSON.stringify({ ...JSON.parse(order("ZAM-B")), items: [{ name: "A", quantity: 1, unit: "xx" }] })

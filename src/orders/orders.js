@@ -79,15 +79,15 @@ document.addEventListener("DOMContentLoaded", () => {
     quantityInput.type = "number";
     quantityInput.name = "itemQuantity";
     quantityInput.placeholder = "Ilość";
-    quantityInput.min = "0.001";
-    quantityInput.step = "0.001";
+    quantityInput.min = "0";
+    quantityInput.step = "1";
     quantityInput.required = true;
     quantityInput.value = quantity;
     cell().appendChild(quantityInput);
 
     const unitSelect = document.createElement("select");
     unitSelect.name = "itemUnit";
-    ["szt.", "opk.", "mb", "kpl."].forEach(value => unitSelect.add(new Option(value, value, false, value === unit)));
+    ["szt.", "opk.", "mb", "km", "kpl."].forEach(value => unitSelect.add(new Option(value, value, false, value === unit)));
     cell().appendChild(unitSelect);
 
     const removeButton = document.createElement("button");
@@ -358,6 +358,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   form.addEventListener("submit", event => {
     event.preventDefault();
+    const quantityInputs = [...itemsFields.querySelectorAll('[name="itemQuantity"]')];
+    quantityInputs.forEach(input => {
+      input.step = "any";
+      input.setCustomValidity(input.value !== "" && Number(input.value) <= 0
+        ? "Ilość musi być większa od zera."
+        : "");
+    });
+    const isValid = form.reportValidity();
+    quantityInputs.forEach(input => {
+      input.step = "1";
+      input.setCustomValidity("");
+    });
+    if (!isValid) return;
     run(async () => {
       const id = form.elements.id.value;
       const values = Object.fromEntries(["orderNumber", "eodSalesforceNumber", "orderDate", "supplier",
@@ -375,6 +388,7 @@ document.addEventListener("DOMContentLoaded", () => {
       resetForm();
       showToast(id ? "Zamówienie zostało zaktualizowane." : "Zamówienie zostało dodane.");
     });
+    form.noValidate = true;
   });
 
   cancelButton.addEventListener("click", resetForm);

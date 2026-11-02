@@ -10,6 +10,10 @@ router.get("/", asyncRoute(async (req, res) => {
   res.json(await orders.listOrders(req.session.user));
 }));
 
+router.get("/suggestions", asyncRoute(async (req, res) => {
+  res.json(await orders.suggestOrders(req.query.prefix || "", req.session.user));
+}));
+
 router.post("/", asyncRoute(async (req, res) => {
   res.status(201).json(await orders.createOrder(req.body, req.session.user));
 }));

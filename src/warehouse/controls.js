@@ -1,8 +1,8 @@
 // Wypełnianie list wyboru (spółki, magazyny, odbiorcy) na podstawie stanu.
 
-// Zwraca id magazynu głównego.
-function mainWarehouseId() {
-  return String(state.warehouses.find(warehouse => warehouse.type === "main")?.id || "");
+// Zwraca id pierwszego magazynu z listy (domyślny wybór w formularzach).
+function defaultWarehouseId() {
+  return String(state.warehouses[0]?.id || "");
 }
 
 // Wypełnia listy spółek w filtrze, pozycji i magazynie.
@@ -67,28 +67,23 @@ function updateNewItemWarehouseOptions() {
   }
   select.disabled = false;
   const available = state.warehouses.filter(warehouse =>
-    warehouse.active && (warehouse.type === "main" || String(warehouse.companyId) === String(companyId))
+    warehouse.active && String(warehouse.companyId) === String(companyId)
   );
   if (!available.length) {
     select.add(new Option("Brak dostępnych magazynów", ""));
     select.disabled = true;
     return;
   }
-  available.forEach(warehouse => {
-    const label = warehouse.type === "main"
-      ? `${warehouse.name} (główny)`
-      : warehouse.name;
-    select.add(new Option(label, String(warehouse.id)));
-  });
+  available.forEach(warehouse => select.add(new Option(warehouse.name, String(warehouse.id))));
   const hasPrevious = available.some(w => String(w.id) === previous);
   select.value = hasPrevious
     ? previous
-    : String(available.find(w => w.type === "main")?.id ?? available[0].id);
+    : String((available.find(w => w.name === w.companyName) ?? available[0]).id);
 }
 
 // Wypełnia listy magazynów w filtrach i formularzach WZ/MM.
 function populateWarehouseControls() {
-  const mainId = mainWarehouseId();
+  const mainId = defaultWarehouseId();
   for (const [selectId, includeAll] of [
     ["warehouseFilter", true],
     ["issueWarehouse", false],
@@ -99,11 +94,12 @@ function populateWarehouseControls() {
     const previous = select.value;
     select.replaceChildren();
     if (includeAll) select.add(new Option("Wszystkie magazyny", ""));
-    state.warehouses.forEach(warehouse => {
-      const label = `${warehouse.name}${warehouse.companyName ? ` — ${warehouse.companyName}` : ""}`;
-      select.add(new Option(label, String(warehouse.id)));
-    });
-    const selectionExists = state.warehouses.some(warehouse => String(warehouse.id) === previous);
+    const companyFilter = selectId === "warehouseFilter" ? byId("warehouseCompanyFilter").value : "";
+    const visible = state.warehouses.filter(warehouse =>
+      !companyFilter || String(warehouse.companyId) === companyFilter
+    );
+    visible.forEach(warehouse => select.add(new Option(warehouse.name, String(warehouse.id))));
+    const selectionExists = visible.some(warehouse => String(warehouse.id) === previous);
     select.value = selectionExists ? previous : includeAll ? "" : mainId;
   }
   updateNewItemWarehouseOptions();
@@ -111,11 +107,21 @@ function populateWarehouseControls() {
 
 // Wypełnia listę odbiorców w formularzu WZ.
 function populateIssueRecipients() {
-  const select = byId("issueRecipient");
-  const previous = select.value;
-  select.replaceChildren(new Option("Wybierz odbiorcę", ""));
-  state.recipients.forEach(recipient => select.add(new Option(recipient.name, String(recipient.id))));
-  select.value = state.recipients.some(recipient => String(recipient.id) === previous) ? previous : "";
+  byId("issueRecipientList").replaceChildren(
+    ...state.recipients.map(recipient => new Option(recipientLabel(recipient)))
+  );
+}
+
+// Etykieta odbiorcy w polu wyszukiwania (nazwa + miejscowość, by rozróżnić duplikaty).
+function recipientLabel(recipient) {
+  const place = [recipient.postalCode, recipient.city].filter(Boolean).join(" ");
+  return place ? `${recipient.name} — ${place}` : recipient.name;
+}
+
+// Zwraca zapisanego odbiorcę dopasowanego do wartości pola wyszukiwania.
+function selectedIssueRecipient() {
+  const value = byId("issueRecipient").value.trim();
+  return value ? state.recipients.find(recipient => recipientLabel(recipient) === value) : undefined;
 }
 
 // Uzupełnia listę spółek formularza przesyłek o spółki z magazynu.
