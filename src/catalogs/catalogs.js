@@ -38,8 +38,8 @@ document.addEventListener("DOMContentLoaded", () => {
       form: "projectCatalogForm",
       title: "projectCatalogTitle",
       table: "projectsCatalogTable",
-      fields: ["projectNumber", "shortName", "fullName", "endDate"],
-      columns: ["projectNumber", "shortName", "fullName", "endDate"],
+      fields: ["projectNumber", "companyId", "shortName", "fullName", "endDate"],
+      columns: ["projectNumber", "companyName", "shortName", "fullName", "endDate"],
       addedMessage: "Projekt został dodany.",
       updatedMessage: "Projekt został zaktualizowany.",
       list: api.projects,
@@ -91,17 +91,23 @@ document.addEventListener("DOMContentLoaded", () => {
         const row = document.createElement("tr");
         config.columns.forEach(field => {
           const cell = document.createElement("td");
-          cell.textContent = String(record[field] ?? "");
+          cell.textContent = field === "companyName"
+            ? entries.companies.find(company => String(company.id) === String(record.companyId))?.name ?? ""
+            : String(record[field] ?? "");
           if (key === "projects" && field === "projectNumber") {
             cell.title = record.shortName;
             cell.setAttribute("aria-label", `${record.projectNumber} — ${record.shortName}`);
           }
           row.appendChild(cell);
         });
+        const role = document.body.dataset.role;
+        const canEdit = role === "admin" || (role === "warehouse" && key === "companies");
+        const canDelete = role === "admin";
         const actions = document.createElement("td");
         const edit = document.createElement("button");
         edit.type = "button";
         edit.textContent = "Edytuj";
+        edit.hidden = !canEdit;
         edit.addEventListener("click", () => {
           form.reset();
           form.elements.id.value = record.id;
@@ -117,6 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const remove = document.createElement("button");
         remove.type = "button";
         remove.textContent = "Usuń";
+        remove.hidden = !canDelete;
         remove.addEventListener("click", () => {
           const label = record.name || record.projectNumber;
           if (!confirm(`Usunąć „${label}”? Tej operacji nie można cofnąć.`)) return;
@@ -145,6 +152,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (Object.values(catalogs).some(catalog => catalog.module === event.detail)) refresh();
   });
 
+  // Uzupełnia listę spółek w formularzu projektu, zachowując wybraną wartość.
+  function fillProjectCompanySelect() {
+    const select = document.getElementById("projectCatalogForm").elements.companyId;
+    const selected = select.value;
+    select.replaceChildren(new Option("Wybierz spółkę", ""));
+    entries.companies.forEach(company => select.add(new Option(company.name, company.id)));
+    select.value = selected;
+  }
+
   // Pobiera wszystkie katalogi z API i rysuje ich tabele.
   async function refresh() {
     try {
@@ -154,6 +170,7 @@ document.addEventListener("DOMContentLoaded", () => {
         catalogs.projects.list()
       ]);
       Object.assign(entries, { companies, recipients, projects });
+      fillProjectCompanySelect();
       Object.values(catalogs).forEach(config => config.render());
     } catch (error) {
       showToast(`Nie udało się pobrać kartotek: ${error.message}`, "error");

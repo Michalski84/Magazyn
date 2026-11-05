@@ -69,12 +69,39 @@ th, td {
   padding: 12px;
   text-align: left;
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 th {
+  position: relative;
   background: #3b3b50;
   font-weight: 600;
   color: #f1f1f1;
+}
+
+th > button.column-resize-handle[type="button"],
+th > button.column-resize-handle[type="button"]:hover {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  z-index: 1;
+  width: 9px;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent !important;
+  box-shadow: none;
+  transform: none;
+  outline: none;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+body.is-resizing-table-column,
+body.is-resizing-table-column * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 td {
@@ -218,4 +245,3 @@ td button[title]:hover::after {
   outline: 3px solid #fff;
   outline-offset: 2px;
 }
-

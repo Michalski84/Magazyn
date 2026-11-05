@@ -93,7 +93,7 @@ async function createIssue(input, userId) {
     quantity: positiveQuantity(line?.quantity, `ilość w pozycji ${index + 1}`),
     serialNumber: line?.serialNumber == null
       ? null
-      : optionalText(line.serialNumber, `SN w pozycji ${index + 1}`, 2000)
+      : optionalText(line.serialNumber, `SN w pozycji ${index + 1}`, 100_000)
   }));
 
   const client = await pool.connect();

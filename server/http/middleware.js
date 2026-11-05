@@ -80,11 +80,22 @@ function requireRole(...roles) {
   };
 }
 
-// Polityka ról: viewer tylko czyta; zapisy w kartotekach (/catalogs) tylko admin.
+// Polityka ról: viewer tylko czyta; zapisy w kartotekach (/catalogs) tylko admin,
+// z wyjątkiem edycji spółek oraz dodawania projektów i odbiorców, które może wykonać też rola „warehouse”.
+const WAREHOUSE_CATALOG_WRITES = [
+  { method: "PUT", path: /^\/companies\/[^/]+$/ },
+  { method: "POST", path: /^\/(projects|recipients)\/?$/ }
+];
+
 function enforceRolePolicy(req, res, next) {
   const role = req.session.user?.role;
   if (["GET", "HEAD", "OPTIONS"].includes(req.method) || role === "admin") return next();
-  if (role === "warehouse" && !req.baseUrl.endsWith("/catalogs")) return next();
+  if (role === "warehouse") {
+    if (!req.baseUrl.endsWith("/catalogs")) return next();
+    if (WAREHOUSE_CATALOG_WRITES.some(rule => rule.method === req.method && rule.path.test(req.path))) {
+      return next();
+    }
+  }
   res.status(403).json({ error: "Twoja rola nie pozwala na wykonanie tej operacji." });
 }
 

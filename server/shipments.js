@@ -19,7 +19,8 @@ const shipmentSelect = `
          s.sender AS nadawca, s.shipment_type AS rodzaj,
          s.package_quantity AS "iloscPrzesylek",
          s.order_number AS zamowienie, s.project_number AS projekt,
-         s.status, s.recipient_signature AS "odbiorcaPodpis", s.notes AS notatki,
+         s.status, s.recipient_signature AS "odbiorcaPodpis",
+         to_char(s.recipient_signed_on, 'YYYY-MM-DD') AS "dataOdbioru", s.notes AS notatki,
          s.version,
          COALESCE(
            json_agg(
@@ -210,7 +211,8 @@ async function patchShipment(id, patch) {
       return value;
     }],
     notatki: ["notes", value => normalizeOptionalText(value, "notatki")],
-    odbiorcaPodpis: ["recipient_signature", value => normalizeOptionalText(value, "odbiorcaPodpis")]
+    odbiorcaPodpis: ["recipient_signature", value => normalizeOptionalText(value, "odbiorcaPodpis")],
+    dataOdbioru: ["recipient_signed_on", normalizeReceiptDate]
   };
   const entries = Object.entries(patch).filter(([key]) => key !== "version");
   if (!entries.length || entries.some(([key]) => !fields[key])) {
@@ -233,6 +235,17 @@ async function patchShipment(id, patch) {
     throw error;
   }
   return getShipment(id);
+}
+
+// Waliduje opcjonalną datę odbioru RRRR-MM-DD; pusta wartość daje null.
+function normalizeReceiptDate(value) {
+  if (value === "" || value == null) return null;
+  const parsed = typeof value === "string" ? new Date(`${value}T00:00:00Z`) : null;
+  if (!parsed || !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+      Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+    invalid("Data odbioru musi być poprawną datą w formacie RRRR-MM-DD.");
+  }
+  return value;
 }
 
 // Waliduje opcjonalne pole tekstowe przesyłki.

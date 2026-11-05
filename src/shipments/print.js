@@ -59,7 +59,7 @@ function printReceipt(id) {
             <td style="width: 38%; vertical-align: top;">
               <div style="height: 55px; border-bottom: 1px solid #000;"></div>
               <p>Odebrał</p>
-              <div style="height: 35px; margin-top: 30px; border-bottom: 1px solid #000;"></div>
+              <div style="height: 35px; margin-top: 30px; border-bottom: 1px solid #000; line-height: 35px;">${escapeHTML(entry.dataOdbioru || "")}</div>
               <p>Data odbioru</p>
             </td>
           </tr>

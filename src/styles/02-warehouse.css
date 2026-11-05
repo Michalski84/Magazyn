@@ -121,20 +121,78 @@
 /* --- Magazyn i katalogi: tabele oraz formularz katalogu --- */
 .warehouse-table-wrap {
   max-width: 100%;
-  overflow-x: auto;
 }
 
 .warehouse-table-wrap table {
-  min-width: 900px;
   margin-bottom: 18px;
-}
-
-.catalog-module .warehouse-table-wrap table {
-  min-width: 760px;
 }
 
 .catalog-form {
   margin-top: 0;
+}
+
+#recipientCatalogForm {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 20px;
+  align-items: end;
+}
+
+#recipientCatalogForm > h3,
+#recipientCatalogForm > .warehouse-form-actions {
+  grid-column: 1 / -1;
+}
+
+#recipientCatalogForm > label {
+  display: grid;
+  gap: 4px;
+}
+
+#recipientCatalogForm input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  #recipientCatalogForm {
+    grid-template-columns: 1fr;
+  }
+
+  #recipientCatalogForm > label {
+    grid-column: 1 / -1;
+  }
+}
+
+#projectCatalogForm {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#projectCatalogForm > label {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+#projectCatalogForm > label input,
+#projectCatalogForm > label select {
+  margin-top: 0;
+}
+
+#projectCatalogForm .project-short-name-field,
+#projectCatalogForm .project-full-name-field {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 768px) {
+  #projectCatalogForm {
+    grid-template-columns: 1fr;
+  }
+
+  #projectCatalogForm > label {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
 }
 
 .warehouse-name-row {
@@ -177,7 +235,9 @@
 }
 
 /* --- Filtry kolumn tabel --- */
-.column-filter-toggle {
+th > button.column-filter-toggle[type="button"],
+th > button.column-filter-toggle[type="button"]:hover {
+  margin: 0;
   padding: 0;
   border: 0;
   background: none;

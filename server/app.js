@@ -16,6 +16,7 @@ const {
   errorHandler
 } = require("./http/middleware");
 const { auditWrites } = require("./audit");
+const { idempotency } = require("./idempotency");
 const adminRoutes = require("./routes/admin");
 const authRoutes = require("./routes/auth");
 const shipmentRoutes = require("./routes/shipments");
@@ -38,7 +39,7 @@ app.disable("x-powered-by");
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
-      scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],
+      scriptSrc: ["'self'", "https://cdn.sheetjs.com"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       upgradeInsecureRequests: null
     }
@@ -61,7 +62,7 @@ app.use(session({
 
 // --- API: trasy publiczne, następnie chronione logowaniem ---
 app.use("/api", authRoutes);
-app.use("/api", requireSameOrigin, requireAuthentication, ensureRole, logApiRequests, auditWrites);
+app.use("/api", requireSameOrigin, requireAuthentication, ensureRole, idempotency, logApiRequests, auditWrites);
 app.use("/api/admin", adminRoutes);
 app.use("/api/shipments", enforceRolePolicy, shipmentRoutes);
 app.use("/api/catalogs", enforceRolePolicy, catalogRoutes);

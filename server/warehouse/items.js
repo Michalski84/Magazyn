@@ -23,7 +23,7 @@ async function createItem(input, userId) {
   const name = requiredText(input.name, "nazwa towaru");
   const unit = requiredText(input.unit, "jednostka miary", 40);
   const quantity = positiveQuantity(input.quantity == null ? 1 : input.quantity, "ilość");
-  const serialNumber = optionalText(input.serialNumber, "numer seryjny", 500);
+  const serialNumber = optionalText(input.serialNumber, "numer seryjny", 100_000);
   const orderNumber = optionalText(input.orderNumber, "numer zamówienia", 500);
   const projectNumber = optionalText(input.projectNumber, "numer projektu", 500);
   const supplier = optionalText(input.supplier, "dostawca", 500);

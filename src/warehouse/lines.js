@@ -68,7 +68,7 @@ function addQuantityLine(containerId, className, quantityLabel, warehouseSelectI
   if (withSerial) {
     const serial = document.createElement("input");
     serial.type = "text";
-    serial.maxLength = 2000;
+    serial.maxLength = 100000;
     serial.className = "issue-line-serial";
     serial.placeholder = "SN";
     serial.setAttribute("aria-label", "Numer seryjny (SN)");

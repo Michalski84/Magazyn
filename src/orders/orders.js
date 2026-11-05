@@ -211,6 +211,30 @@ document.addEventListener("DOMContentLoaded", () => {
       .filter(Boolean))].join("; ");
   }
 
+  function flagIcon() {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 16 16");
+    svg.setAttribute("width", "16");
+    svg.setAttribute("height", "16");
+    svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS(ns, "path");
+    path.setAttribute("d", "M3 1.5v13M3.5 2h9l-2.2 3.2 2.2 3.3h-9");
+    path.setAttribute("stroke", "currentColor");
+    path.setAttribute("stroke-width", "1.6");
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    path.setAttribute("fill", "currentColor");
+    svg.appendChild(path);
+    return svg;
+  }
+
+  function flagButton(title, color, active, onClick) {
+    const button = actionButton("", title, onClick, `order-flag-button order-flag-${color}${active ? " is-active" : ""}`);
+    button.appendChild(flagIcon());
+    return button;
+  }
+
   function actionButton(icon, title, onClick, className = "") {
     const button = document.createElement("button");
     button.type = "button";
@@ -233,6 +257,7 @@ document.addEventListener("DOMContentLoaded", () => {
     visible.forEach((order, index) => {
       const row = tbody.insertRow();
       row.classList.toggle("order-flagged", order.flagged);
+      row.classList.toggle("order-flagged-yellow", order.flaggedYellow && !order.flagged);
       row.classList.toggle("order-cancelled", order.status === "anulowane");
       [index + 1, order.orderNumber, order.supplier, null, formatOrderValue(order), order.deliveryAddress,
         order.projectNumber || "—", order.eodSalesforceNumber || "—", order.orderDate]
@@ -274,9 +299,10 @@ document.addEventListener("DOMContentLoaded", () => {
       actions.appendChild(actionButton("🗒️", order.notes ? "Pokaż notatki (zapisano notatkę)" : "Notatki",
         () => openNotes(order), order.notes ? "has-note" : ""));
       actions.appendChild(actionButton("✏️", "Edytuj", () => startEdit(order)));
-      actions.appendChild(actionButton(order.flagged ? "🏳️" : "🚩", order.flagged ? "Zdejmij flagę" : "Oflaguj",
-        () => patch(order, { flagged: !order.flagged }, order.flagged ? "Flaga została zdjęta." : "Zamówienie oflagowano."),
-        "order-flag-button"));
+      actions.appendChild(flagButton(order.flagged ? "Zdejmij czerwoną flagę" : "Oflaguj na czerwono", "red", order.flagged,
+        () => patch(order, { flagged: !order.flagged }, order.flagged ? "Flaga została zdjęta." : "Zamówienie oflagowano.")));
+      actions.appendChild(flagButton(order.flaggedYellow ? "Zdejmij żółtą flagę" : "Oznacz na żółto", "yellow", order.flaggedYellow,
+        () => patch(order, { flaggedYellow: !order.flaggedYellow }, order.flaggedYellow ? "Żółta flaga została zdjęta." : "Zamówienie oznaczono na żółto.")));
     });
     if (!visible.length) {
       const cell = tbody.insertRow().insertCell();
@@ -392,6 +418,15 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   cancelButton.addEventListener("click", resetForm);
+  document.getElementById("orderClearButton").addEventListener("click", () => {
+    const id = form.elements.id.value;
+    resetForm();
+    if (!id) return;
+    form.elements.id.value = id;
+    formTitle.textContent = "Edycja zamówienia";
+    submitButton.textContent = "Zapisz zmiany";
+    cancelButton.hidden = false;
+  });
   document.getElementById("addOrderItemButton").addEventListener("click", () => addItemRow());
   currencySelect.addEventListener("change", updateExchangeRateField);
   [searchInput, statusFilter, flaggedFilter, dateFromFilter, dateToFilter, ...Object.values(fieldFilters)].forEach(control => {

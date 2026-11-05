@@ -73,8 +73,47 @@ function updateThemeToggle() {
   );
 }
 
+let submitGuardInstalled = false;
+
+// Blokuje ponowne wysłanie formularza (kliknięcie, Enter), dopóki trwa jego zapis na serwerze.
+function initSubmitGuard() {
+  if (submitGuardInstalled) return;
+  submitGuardInstalled = true;
+  document.addEventListener("submit", event => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    if (form.dataset.submitting === "1") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+
+    form.dataset.submitting = "1";
+    const buttons = Array.from(form.querySelectorAll("button")).filter(button =>
+      button.type === "submit" && !button.disabled);
+    buttons.forEach(button => { button.disabled = true; });
+
+    // Zwalnia formularz po zakończeniu zapisów lub od razu, gdy walidacja przerwała wysyłkę.
+    const release = () => {
+      delete form.dataset.submitting;
+      buttons.forEach(button => { button.disabled = false; });
+    };
+    Promise.resolve().then(() => {
+      if (!(window.shipmentApi?.writesInFlight?.() > 0)) return release();
+      const timer = setInterval(() => {
+        if (window.shipmentApi.writesInFlight() > 0) return;
+        clearInterval(timer);
+        release();
+      }, 100);
+    });
+  }, true);
+}
+
 // Podłącza przełącznik motywu i przyciski przewijania na początek/koniec strony.
 function initUi() {
+  initTableColumnResizing();
+  initSubmitGuard();
+
   // Przełącznik motywu jasny/ciemny.
 
   updateThemeToggle();

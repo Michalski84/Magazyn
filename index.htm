@@ -130,7 +130,10 @@
   <button type="button" id="addZawartoscButton">Dodaj pozycję</button>
 </div>
 
-    <button type="submit" id="submitButton">Dodaj przesyłkę</button>
+    <div class="shipment-form-actions">
+      <button type="button" id="clearShipmentFormButton">Wyczyść formularz</button>
+      <button type="submit" id="submitButton">Dodaj przesyłkę</button>
+    </div>
   </form>
 
   <section class="search-section">
@@ -341,7 +344,7 @@
         </select>
       </label>
       <label for="newItemSerial">Serial Number (SN)
-        <input id="newItemSerial" maxlength="500">
+        <input id="newItemSerial">
       </label>
       <label for="newItemOrderNumber">Nr zamówienia
         <input id="newItemOrderNumber" maxlength="500">
@@ -367,8 +370,8 @@
         <label for="issueWarehouse">Magazyn
           <select id="issueWarehouse" required></select>
         </label>
-        <label for="issueRecipient">Zapisany odbiorca
-          <input id="issueRecipient" type="search" list="issueRecipientList" autocomplete="off" placeholder="Wybierz z listy lub wyszukaj (opcjonalnie)">
+        <label for="issueRecipient" class="issue-recipient-picker">Zapisany odbiorca
+          <input id="issueRecipient" type="text" list="issueRecipientList" autocomplete="off" placeholder="Zacznij pisać nazwę lub miasto odbiorcy (opcjonalnie)">
           <datalist id="issueRecipientList"></datalist>
         </label>
         <label for="issueRecipientText" class="issue-recipient-field">Odbiorca (nazwa i adres)
@@ -447,7 +450,7 @@
         </select>
       </label>
       <label for="editStockSerial">Serial Number (SN)
-        <input id="editStockSerial" maxlength="500">
+        <input id="editStockSerial">
       </label>
       <label for="editStockOrderNumber">Nr zamówienia
         <input id="editStockOrderNumber" maxlength="500">
@@ -548,9 +551,12 @@
 
     <details class="warehouse-details" open>
       <summary>Dokumenty WZ</summary>
-      <div class="issue-filters" id="issueFilters">
+      <div class="warehouse-toolbar issue-filters" id="issueFilters" aria-label="Filtry dokumentów WZ">
         <label for="issueFilterSearch">Numer WZ
           <input id="issueFilterSearch" type="search" placeholder="np. WZ/2026/12" autocomplete="off">
+        </label>
+        <label for="issueFilterCompany">Spółka
+          <select id="issueFilterCompany"><option value="">Wszystkie spółki</option></select>
         </label>
         <label for="issueFilterRecipient">Odbiorca
           <select id="issueFilterRecipient"><option value="">Wszyscy odbiorcy</option></select>
@@ -631,6 +637,7 @@
       </div>
       <div class="order-form-actions">
         <button type="submit" id="orderSubmitButton">Dodaj zamówienie</button>
+        <button type="button" id="orderClearButton">Wyczyść formularz</button>
         <button type="button" id="orderCancelButton" hidden>Anuluj edycję</button>
       </div>
     </form>
@@ -714,11 +721,11 @@
       <h3 id="recipientCatalogTitle">Nowy odbiorca</h3>
       <input type="hidden" name="id">
       <label>Imię i nazwisko / nazwa odbiorcy<input name="name" maxlength="500" required></label>
+      <label>Adres 2 (opcjonalny)<input name="address2" maxlength="500"></label>
       <label>Ulica (opcjonalnie)<input name="street" maxlength="500"></label>
       <label>Numer (opcjonalnie)<input name="buildingNumber" maxlength="100"></label>
       <label>Kod pocztowy (opcjonalnie)<input name="postalCode" maxlength="30"></label>
       <label>Miasto (opcjonalnie)<input name="city" maxlength="500"></label>
-      <label>Adres 2 (opcjonalny)<input name="address2" maxlength="500"></label>
       <label>Osoba kontaktowa<input name="contactPerson" maxlength="200"></label>
       <label>Numer telefonu<input name="phone" maxlength="100" type="tel"></label>
       <div class="warehouse-form-actions">
@@ -741,8 +748,11 @@
       <h3 id="projectCatalogTitle">Nowy projekt</h3>
       <input type="hidden" name="id">
       <label>Numer projektu<input name="projectNumber" maxlength="500" required></label>
-      <label>Nazwa skrócona<input name="shortName" maxlength="500" required></label>
-      <label>Nazwa pełna<input name="fullName" maxlength="500" required></label>
+      <label>Spółka
+        <select name="companyId"><option value="">Wybierz spółkę</option></select>
+      </label>
+      <label class="project-short-name-field">Nazwa skrócona<input name="shortName" maxlength="500" required></label>
+      <label class="project-full-name-field">Nazwa pełna<input name="fullName" maxlength="500" required></label>
       <label>Data zakończenia projektu<input name="endDate" type="date"></label>
       <div class="warehouse-form-actions">
         <button type="submit">Zapisz projekt</button>
@@ -750,7 +760,7 @@
       </div>
     </form>
     <div class="warehouse-table-wrap"><table id="projectsCatalogTable">
-      <thead><tr><th>Numer projektu</th><th>Nazwa skrócona</th><th>Nazwa pełna</th><th>Data zakończenia</th><th>Akcje</th></tr></thead>
+      <thead><tr><th>Numer projektu</th><th>Spółka</th><th>Nazwa skrócona</th><th>Nazwa pełna</th><th>Data zakończenia</th><th>Akcje</th></tr></thead>
       <tbody></tbody>
     </table></div>
   </section>
@@ -817,6 +827,8 @@
     <h3>Dane odbiorcy</h3>
     <label for="recipientNameInput">Imię i nazwisko odbiorcy</label>
     <input id="recipientNameInput" type="text" autocomplete="name" placeholder="Imię i nazwisko">
+    <label for="receiptDateInput">Data odbioru</label>
+    <input id="receiptDateInput" type="date">
     <button type="button" id="saveSignatureButton">Zapisz</button>
     <button type="button" id="closeSignatureModalButton">Zamknij</button>
   </div>
@@ -900,9 +912,12 @@
   </section>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"
+  integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT"
+  crossorigin="anonymous"></script>
 <script src="src/shared/api.js"></script>
 <script src="src/shared/ui.js"></script>
+<script src="src/shared/table-resizing.js"></script>
 <script src="src/shipments/state.js"></script>
 <script src="src/shipments/dom.js"></script>
 <script src="src/shipments/session.js"></script>

@@ -1,8 +1,9 @@
 // Lista dokumentów WZ (z filtrami) oraz wydruk dokumentu wydania.
 
-// Zwraca dokumenty WZ spełniające aktualne filtry (numer, odbiorca, projekt, zakres dat, status).
+// Zwraca dokumenty WZ spełniające aktualne filtry (numer, spółka, odbiorca, projekt, zakres dat, status).
 function filteredIssues() {
   const search = byId("issueFilterSearch").value.trim().toLocaleLowerCase("pl-PL");
+  const company = byId("issueFilterCompany").value;
   const recipientId = byId("issueFilterRecipient").value;
   const project = byId("issueFilterProject").value.trim().toLocaleLowerCase("pl-PL");
   const from = byId("issueFilterFrom").value;
@@ -11,6 +12,7 @@ function filteredIssues() {
   return state.issues.filter(issue => {
     const date = String(issue.issueDate ?? "").slice(0, 10);
     return (!search || String(issue.documentNo ?? "").toLocaleLowerCase("pl-PL").includes(search)) &&
+      (!company || issue.companyName === company) &&
       (!recipientId || String(issue.recipientId) === recipientId) &&
       (!project || String(issue.projectNumber ?? "").toLocaleLowerCase("pl-PL").includes(project)) &&
       (!from || date >= from) &&
@@ -28,14 +30,24 @@ function populateIssueFilterRecipients() {
   select.value = state.recipients.some(recipient => String(recipient.id) === previous) ? previous : "";
 }
 
+// Wypełnia listę spółek w filtrze WZ wyłącznie spółkami, które mają wystawione dokumenty.
+function populateIssueFilterCompanies() {
+  const select = byId("issueFilterCompany");
+  const previous = select.value;
+  const names = [...new Set(state.issues.map(issue => issue.companyName).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "pl-PL"));
+  select.replaceChildren(new Option("Wszystkie spółki", ""), ...names.map(name => new Option(name, name)));
+  select.value = names.includes(previous) ? previous : "";
+}
+
 // Podpina filtry listy WZ.
 function initIssueFilters() {
   ["issueFilterSearch", "issueFilterProject", "issueFilterFrom", "issueFilterTo"]
     .forEach(id => byId(id).addEventListener("input", renderIssues));
-  ["issueFilterRecipient", "issueFilterStatus"]
+  ["issueFilterCompany", "issueFilterRecipient", "issueFilterStatus"]
     .forEach(id => byId(id).addEventListener("change", renderIssues));
   byId("issueFilterClear").addEventListener("click", () => {
-    ["issueFilterSearch", "issueFilterRecipient", "issueFilterProject",
+    ["issueFilterSearch", "issueFilterCompany", "issueFilterRecipient", "issueFilterProject",
       "issueFilterFrom", "issueFilterTo", "issueFilterStatus"].forEach(id => {
       byId(id).value = "";
     });
@@ -47,6 +59,7 @@ function initIssueFilters() {
 function renderIssues() {
   const tbody = byId("issuesTable").tBodies[0];
   tbody.replaceChildren();
+  populateIssueFilterCompanies();
   const issues = filteredIssues();
   byId("issueFilterCount").textContent = `Wyświetlono: ${issues.length} z ${state.issues.length}`;
   issues.forEach(issue => {
@@ -146,8 +159,13 @@ function printIssue(issue) {
       .party h2{margin:0 0 8px;font-size:13px;text-transform:uppercase;color:#555}
       .document-details{display:flex;gap:32px;margin:18px 0}
       .document-details>div{flex:1}
-      table.lines{border-collapse:collapse;width:100%}
-      table.lines th,table.lines td{border:1px solid #888;padding:7px;text-align:left}
+      table.lines{border-collapse:collapse;width:100%;table-layout:fixed}
+      table.lines th,table.lines td{border:1px solid #888;padding:7px;text-align:left;overflow-wrap:anywhere}
+      table.lines th:nth-child(1){width:6%}
+      table.lines th:nth-child(2){width:29%}
+      table.lines th:nth-child(3){width:8%}
+      table.lines th:nth-child(4){width:12%}
+      table.lines th:nth-child(5){width:45%}
       .signatures{margin-top:90px;width:100%;table-layout:fixed;text-align:center}
       .signatures td{width:50%;vertical-align:top}
       .signature-line{display:block;width:80%;height:1em;margin:0 auto 4px;border-bottom:1px dotted #000}

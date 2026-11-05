@@ -196,6 +196,7 @@ body[data-theme="light"] option {
 }
 
 body[data-theme="light"] #recipientNameInput,
+body[data-theme="light"] #receiptDateInput,
 body[data-theme="light"] #notesTextarea {
   border-color: #bcb9ae;
   background: #f4f2eb;

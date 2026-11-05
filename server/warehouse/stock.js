@@ -40,7 +40,7 @@ async function updateStockEntry(entryId, input, userId) {
   const unit = requiredText(input.unit, "jednostka miary", 40);
   const quantity = Number(input.quantity);
   if (!Number.isFinite(quantity) || quantity < 0) invalid("Ilość musi być liczbą nieujemną.");
-  const serialNumber = optionalText(input.serialNumber, "numer seryjny", 500);
+  const serialNumber = optionalText(input.serialNumber, "numer seryjny", 100_000);
   const orderNumber = optionalText(input.orderNumber, "numer zamówienia", 500);
   const projectNumber = optionalText(input.projectNumber, "numer projektu", 500);
   const supplier = optionalText(input.supplier, "dostawca", 500);

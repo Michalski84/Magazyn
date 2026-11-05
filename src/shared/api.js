@@ -1,6 +1,52 @@
 // Klient API: wspólna funkcja zapytań HTTP oraz metody window.shipmentApi dla wszystkich modułów.
-// Pojedyncze zapytanie do /api: obsługuje JSON, błędy serwera i wygaśnięcie sesji (401).
+// Zapisy w toku oraz klucze idempotentności ponawianych zapisów (podpis żądania -> klucz).
+let writesInFlight = 0;
+const pendingWrites = new Map();
+
+// Losowy klucz; getRandomValues działa także przez http w sieci lokalnej (randomUUID nie).
+function newIdempotencyKey() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+// Liczba zapisów (POST/PUT/PATCH/DELETE) oczekujących na odpowiedź serwera.
+function getWritesInFlight() {
+  return writesInFlight;
+}
+
+// Zapisy: identyczne żądanie w toku dostaje ten sam wynik (podwójne kliknięcie), a ponowienie
+// po utracie łączności lub błędzie serwera używa tego samego klucza, więc serwer nie zdubluje danych.
 async function apiRequest(path, options = {}) {
+  const method = options.method || "GET";
+  if (method === "GET") return sendApiRequest(path, options);
+
+  const signature = `${method} ${path} ${JSON.stringify(options.body ?? null)}`;
+  let entry = pendingWrites.get(signature);
+  if (entry?.promise) return entry.promise;
+  if (!entry) {
+    entry = { key: newIdempotencyKey(), promise: null };
+    pendingWrites.set(signature, entry);
+  }
+
+  writesInFlight += 1;
+  entry.promise = sendApiRequest(path, options, entry.key).then(result => {
+    pendingWrites.delete(signature);
+    return result;
+  }, error => {
+    // Klucz zostaje po braku odpowiedzi, błędzie 5xx i 409, bo stan zapisu mógł być nieznany.
+    const unknownOutcome = !error.status || error.status >= 500 || error.status === 409;
+    if (unknownOutcome) entry.promise = null;
+    else pendingWrites.delete(signature);
+    throw error;
+  }).finally(() => {
+    writesInFlight -= 1;
+  });
+  return entry.promise;
+}
+
+// Pojedyncze zapytanie do /api: obsługuje JSON, błędy serwera i wygaśnięcie sesji (401).
+async function sendApiRequest(path, options = {}, idempotencyKey) {
   const url = `/api${path}`;
   const method = options.method || "GET";
   const response = await fetch(url, {
@@ -8,6 +54,7 @@ async function apiRequest(path, options = {}) {
     credentials: "same-origin",
     headers: {
       ...(options.body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       ...options.headers
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body)
@@ -28,6 +75,7 @@ async function apiRequest(path, options = {}) {
 }
 
 window.shipmentApi = {
+  writesInFlight: getWritesInFlight,
   session: () => apiRequest("/auth/session"),
   register: (username, password, passwordConfirmation) => apiRequest("/auth/register", {
     method: "POST",

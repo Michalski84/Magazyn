@@ -1,6 +1,8 @@
 const ALLOWED_STATUSES = new Set(["na magazynie", "odebrane", "częściowo odebrane"]);
 const REQUIRED_TEXT_FIELDS = ["firma", "numerListu", "odbiorca", "nadawca", "rodzaj"];
 const MAX_TEXT_LENGTH = 500;
+// Numery seryjne (SN) mogą tworzyć bardzo długie listy, więc mają osobny, wysoki limit.
+const MAX_SERIAL_LENGTH = 100_000;
 
 function invalid(message) {
   const error = new Error(message);
@@ -19,7 +21,9 @@ function normalizeShipment(input) {
       invalid(`Nieprawidłowa wartość pola: ${field}.`);
     }
     const normalized = String(value).trim();
-    const maxLength = field === "notatki" ? 20_000 : MAX_TEXT_LENGTH;
+    const maxLength = field === "notatki" ? 20_000
+      : field.endsWith(".serial") ? MAX_SERIAL_LENGTH
+        : MAX_TEXT_LENGTH;
     if (normalized.length > maxLength) {
       invalid(`Pole ${field} przekracza limit ${maxLength} znaków.`);
     }

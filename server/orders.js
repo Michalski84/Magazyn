@@ -22,6 +22,7 @@ const COLUMNS = `
   CASE WHEN o.currency = 'PLN' THEN o.order_value
        ELSE ROUND(o.order_value * o.exchange_rate, 2) END::float8 AS "orderValuePln",
   o.delivery_address AS "deliveryAddress", o.status, o.notes, o.flagged,
+  o.flagged_yellow AS "flaggedYellow",
   o.user_id AS "userId", o.created_by AS "createdBy",
   o.created_at AS "createdAt", o.updated_at AS "updatedAt"
 `;
@@ -201,16 +202,18 @@ async function patchOrder(id, input, user) {
   const patch = {
     status: input.status === undefined ? null : status(input.status),
     flagged: input.flagged === undefined ? null : input.flagged,
+    flaggedYellow: input.flaggedYellow === undefined ? null : input.flaggedYellow,
     notes: input.notes === undefined ? null : text(input.notes, "notatka", { max: 5000 })
   };
   if (patch.flagged !== null && typeof patch.flagged !== "boolean") invalid("Nieprawidłowa wartość flagi.");
+  if (patch.flaggedYellow !== null && typeof patch.flaggedYellow !== "boolean") invalid("Nieprawidłowa wartość flagi.");
   if (Object.values(patch).every(value => value === null)) invalid("Brak danych do zmiany.");
   await pool.query(`
     UPDATE orders
        SET status = COALESCE($2, status), flagged = COALESCE($3, flagged),
-           notes = COALESCE($4, notes), updated_at = NOW()
+           notes = COALESCE($4, notes), flagged_yellow = COALESCE($5, flagged_yellow), updated_at = NOW()
      WHERE id = $1
-  `, [recordId(id), patch.status, patch.flagged, patch.notes]);
+  `, [recordId(id), patch.status, patch.flagged, patch.notes, patch.flaggedYellow]);
   return getVisibleOrder(id, user);
 }
 

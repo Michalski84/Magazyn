@@ -6,6 +6,8 @@ function openSignatureModal(id) {
 
   currentSignatureId = shipment.id;
   recipientNameInput.value = shipment.odbiorcaPodpis || "";
+  document.getElementById("receiptDateInput").value =
+    shipment.dataOdbioru || new Date().toLocaleDateString("sv-SE");
   document.getElementById("signatureModal").style.display = "block";
   recipientNameInput.focus();
   recipientNameInput.select();
@@ -31,7 +33,8 @@ async function saveSignature() {
   try {
     const updated = await window.shipmentApi.patch(shipment.id, {
       version: shipment.version,
-      odbiorcaPodpis: recipientName
+      odbiorcaPodpis: recipientName,
+      dataOdbioru: document.getElementById("receiptDateInput").value
     });
     shipments = shipments.map(item => item.id === updated.id ? updated : item);
     closeSignatureModal();

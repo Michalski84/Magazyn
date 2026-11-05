@@ -65,6 +65,7 @@ body[data-theme="light"] option {
 }
 
 .warehouse-toolbar #stockSearch,
+#issueFilters input,
 #issueRecipient {
   box-sizing: border-box;
   width: 100%;
@@ -86,28 +87,49 @@ body[data-theme="light"] option {
   font-size: inherit;
 }
 
-.warehouse-toolbar #stockSearch::placeholder {
+#issueFilters input {
+  min-width: 150px;
+  margin-top: 0;
+  color-scheme: dark;
+}
+
+#issueFilters label {
+  min-width: 150px;
+  gap: 4px;
+}
+
+#issueFilters button {
+  min-height: 36px;
+}
+
+.warehouse-toolbar #stockSearch::placeholder,
+#issueFilters input::placeholder {
   color: #b6b6c5;
 }
 
-.warehouse-toolbar #stockSearch:focus-visible {
+.warehouse-toolbar #stockSearch:focus-visible,
+#issueFilters input:focus-visible {
   border-color: #62aaff;
   outline: 2px solid rgb(98 170 255 / 28%);
   outline-offset: 1px;
   box-shadow: 0 0 0 3px rgb(98 170 255 / 12%);
 }
 
-body[data-theme="light"] .warehouse-toolbar #stockSearch {
+body[data-theme="light"] .warehouse-toolbar #stockSearch,
+body[data-theme="light"] #issueFilters input {
   border-color: #c2c0b7;
   background: #fff;
   color: #30323a;
+  color-scheme: light;
 }
 
-body[data-theme="light"] .warehouse-toolbar #stockSearch::placeholder {
+body[data-theme="light"] .warehouse-toolbar #stockSearch::placeholder,
+body[data-theme="light"] #issueFilters input::placeholder {
   color: #777b83;
 }
 
-body[data-theme="light"] .warehouse-toolbar #stockSearch:focus-visible {
+body[data-theme="light"] .warehouse-toolbar #stockSearch:focus-visible,
+body[data-theme="light"] #issueFilters input:focus-visible {
   border-color: #2879c7;
   outline-color: rgb(40 121 199 / 24%);
   box-shadow: 0 0 0 3px rgb(40 121 199 / 12%);
@@ -124,16 +146,15 @@ body[data-theme="light"] .warehouse-toolbar #stockSearch:focus-visible {
   box-shadow: 0 0 0 3px rgb(98 170 255 / 12%);
 }
 
-/* Czerwony przycisk „x” czyszczenia pola wyszukiwania odbiorcy. */
-#issueRecipient::-webkit-search-cancel-button {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 14px;
-  height: 14px;
-  cursor: pointer;
-  background:
-    linear-gradient(45deg, transparent 43%, #e53935 43% 57%, transparent 57%),
-    linear-gradient(135deg, transparent 43%, #e53935 43% 57%, transparent 57%);
+/* Pole zapisanego odbiorcy jest szersze od pozostałych pól formularza WZ. */
+.issue-recipient-picker {
+  grid-column: span 2;
+}
+
+@media (max-width: 768px) {
+  .issue-recipient-picker {
+    grid-column: 1 / -1;
+  }
 }
 
 body[data-theme="light"] #issueRecipient {
@@ -150,10 +171,4 @@ body[data-theme="light"] #issueRecipient:focus-visible {
   border-color: #2879c7;
   outline-color: rgb(40 121 199 / 24%);
   box-shadow: 0 0 0 3px rgb(40 121 199 / 12%);
-}
-
-body[data-theme="light"] #issueRecipient::-webkit-search-cancel-button {
-  background:
-    linear-gradient(45deg, transparent 43%, #d32f2f 43% 57%, transparent 57%),
-    linear-gradient(135deg, transparent 43%, #d32f2f 43% 57%, transparent 57%);
 }

@@ -111,6 +111,14 @@ test("administrator nadaje rolę i aktywuje konto; deaktywacja odbiera dostęp",
   assert.equal((await call(accountCookie, "/catalogs/projects", {
     method: "POST",
     body: JSON.stringify({})
+  })).status, 400);
+  assert.equal((await call(accountCookie, "/catalogs/recipients", {
+    method: "POST",
+    body: JSON.stringify({})
+  })).status, 400);
+  assert.equal((await call(accountCookie, "/catalogs/companies", {
+    method: "POST",
+    body: JSON.stringify({})
   })).status, 403);
 
   const deactivated = await call(adminCookie, `/admin/users/${user.id}`, {
@@ -138,13 +146,23 @@ test("viewer może czytać, ale nie zapisywać", async t => {
   assert.equal(write.status, 403);
 });
 
-test("warehouse zapisuje w magazynie, ale nie w kartotekach", async t => {
+test("warehouse zapisuje w magazynie, edytuje spółki i dodaje projekty, ale nie reszty kartotek", async t => {
   if (!db) return t.skip("brak PostgreSQL");
   const cookie = await login("mag");
   const warehouseWrite = await call(cookie, "/warehouse/items", { method: "POST", body: JSON.stringify({}) });
   assert.equal(warehouseWrite.status, 400);
-  const catalogWrite = await call(cookie, "/catalogs/projects", { method: "POST", body: JSON.stringify({}) });
-  assert.equal(catalogWrite.status, 403);
+  const projectWrite = await call(cookie, "/catalogs/projects", { method: "POST", body: JSON.stringify({}) });
+  assert.equal(projectWrite.status, 400);
+  const companyEdit = await call(cookie, "/catalogs/companies/1", { method: "PUT", body: JSON.stringify({}) });
+  assert.equal(companyEdit.status, 400);
+  const companyCreate = await call(cookie, "/catalogs/companies", { method: "POST", body: JSON.stringify({}) });
+  assert.equal(companyCreate.status, 403);
+  const recipientEdit = await call(cookie, "/catalogs/recipients/1", { method: "PUT", body: JSON.stringify({}) });
+  assert.equal(recipientEdit.status, 403);
+  const projectEdit = await call(cookie, "/catalogs/projects/1", { method: "PUT", body: JSON.stringify({}) });
+  assert.equal(projectEdit.status, 403);
+  const projectDelete = await call(cookie, "/catalogs/projects/1", { method: "DELETE" });
+  assert.equal(projectDelete.status, 403);
 });
 
 test("dziennik zmian jest dostępny tylko dla administratora i zawiera wpisy", async t => {

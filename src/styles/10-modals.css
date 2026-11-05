@@ -24,12 +24,13 @@
 
 #signatureModal label {
   display: block;
-  margin-bottom: 8px;
+  margin: 12px 0 8px;
   color: #ddd;
   font-weight: 600;
 }
 
-#recipientNameInput {
+#recipientNameInput,
+#receiptDateInput {
   box-sizing: border-box;
   width: 100%;
   padding: 10px 12px;
@@ -40,7 +41,8 @@
   font: inherit;
 }
 
-#recipientNameInput:focus {
+#recipientNameInput:focus,
+#receiptDateInput:focus {
   outline: 2px solid #4da6ff;
   outline-offset: 1px;
 }
@@ -250,14 +252,6 @@
   background: #702c32;
 }
 
-.account-table-wrap {
-  overflow-x: auto;
-}
-
-#accountsTable {
-  min-width: 680px;
-}
-
 #accountsTable td,
 #accountsTable th {
   padding: 8px;
@@ -296,7 +290,7 @@ body[data-role="viewer"] .catalog-add-button,
 body[data-role="viewer"] #stockSelectionBar button:not(#exportSelectionButton):not(#clearStockSelectionButton),
 body[data-role="viewer"] #addZawartoscButton,
 body[data-role="viewer"] #importExcelButton,
-body[data-role="warehouse"] .catalog-add-button {
+body[data-role="warehouse"] .catalog-add-button[data-catalog-add="companies"] {
   display: none !important;
 }
 
@@ -400,6 +394,37 @@ body[data-role="warehouse"] .catalog-add-button {
   box-shadow: inset 4px 0 0 #ff5252;
 }
 
+/* Flagi SVG: kolor ustawiany przez currentColor; nieaktywna jest przygaszona. */
+#ordersTable .order-flag-button svg {
+  display: block;
+  margin: auto;
+}
+
+#ordersTable .order-flag-red {
+  color: #e53935;
+}
+
+#ordersTable .order-flag-yellow {
+  color: #f5c400;
+}
+
+#ordersTable .order-flag-button:not(.is-active) svg {
+  opacity: 0.45;
+}
+
+#ordersTable .order-flag-button:not(.is-active) svg path {
+  fill: none;
+}
+
+#ordersTable tr.order-flagged-yellow td {
+  background: #8a7410;
+  color: #fff;
+}
+
+#ordersTable tr.order-flagged-yellow td:first-child {
+  box-shadow: inset 4px 0 0 #ffd400;
+}
+
 #ordersTable tr.order-cancelled td:not(.order-actions) {
   opacity: 0.6;
   text-decoration: line-through;
@@ -416,9 +441,17 @@ body[data-role="warehouse"] .catalog-add-button {
 #ordersTable .order-actions button {
   width: auto;
   min-width: 32px;
+  height: 32px;
   padding: 5px 7px;
   margin: 0 2px 0 0;
   font-size: 1rem;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+#ordersTable .order-actions .order-flag-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 #ordersTable th:nth-child(4),
@@ -563,6 +596,11 @@ body[data-theme="light"] .order-search-panel select {
   background: #fff;
   color: #222;
   border-color: #bbb;
+}
+
+body[data-theme="light"] #ordersTable tr.order-flagged-yellow td {
+  background: #fff3a8;
+  color: #4a3d00;
 }
 
 body[data-theme="light"] #ordersTable tr.order-flagged td {

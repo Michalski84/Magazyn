@@ -21,3 +21,15 @@
 
 .row-actions { white-space: nowrap; width: 1%; }
 .row-action-button { padding: 2px 6px; margin: 0 1px; min-width: 0; font-size: 14px; line-height: 1.2; }
+
+/* --- Tabele na mniejszych ekranach: mniejsza czcionka i odstępy, by treść mieściła się bez suwaka --- */
+@media (max-width: 1100px) {
+  table, th, td { font-size: 12px; }
+  th, td { padding: 8px; }
+}
+
+@media (max-width: 768px) {
+  table, th, td { font-size: 11px; }
+  th, td { padding: 5px; }
+  td button { font-size: 12px; margin-right: 2px; }
+}

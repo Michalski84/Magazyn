@@ -309,4 +309,14 @@ function initForm() {
       renderShipments();
     });
   });
+
+  document.getElementById("clearShipmentFormButton").addEventListener("click", () => {
+    const warehouseSelect = document.getElementById("shipmentWarehouseSelect");
+    const wasDisabled = warehouseSelect.disabled;
+    form.reset();
+    warehouseSelect.disabled = wasDisabled;
+    updateOtherCompanyInput();
+    document.getElementById("zawartoscFields").innerHTML = "";
+    addZawartoscField();
+  });
 }
